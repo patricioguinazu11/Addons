@@ -44,6 +44,74 @@ local function OutCubic(p) return 1 - (1 - p) ^ 3 end
 local function OutBack(p) local c = 1.7; return 1 + (c + 1) * (p - 1) ^ 3 + c * (p - 1) ^ 2 end
 NS.Tween, NS.OutCubic = Tween, OutCubic
 
+----------------------------------------------------------------------
+-- Entradas y salidas para las ventanas que aparecen en pantalla
+-- (aviso, flecha, lista de compras, instructor). Respetan "Animaciones del Códice".
+----------------------------------------------------------------------
+local moving = {}   -- marcos con una entrada/salida en curso (para no pisarse)
+
+local function Anchor(f)
+  local p, rel, rp, x, y = f:GetPoint(1)
+  if type(p) ~= "string" then return nil end
+  return { p, rel, rp, x or 0, y or 0 }
+end
+local function Place(f, a, dx, dy)
+  f:ClearAllPoints()
+  f:SetPoint(a[1], a[2], a[3], a[4] + dx, a[5] + dy)
+end
+
+-- Aparece: fundido de 0 a 1 mientras llega desde (dx, dy) a su lugar
+function NS.Appear(f, dx, dy, dur)
+  if not f then return end
+  local token = {}
+  moving[f] = token
+  if not On() then f:SetAlpha(1); return end
+  local a = Anchor(f)
+  dx, dy = dx or 0, dy or 0
+  f:SetAlpha(0)
+  if a then Place(f, a, dx, dy) end
+  Tween(dur or 0.25, function(p)
+    if moving[f] ~= token then return end
+    f:SetAlpha(p)
+    if a then Place(f, a, dx * (1 - p), dy * (1 - p)) end
+  end, 0, function()
+    if moving[f] ~= token then return end
+    f:SetAlpha(1)
+    if a then Place(f, a, 0, 0) end
+    moving[f] = nil
+  end, OutCubic)
+end
+
+-- Desaparece: fundido de 1 a 0 alejándose hacia (dx, dy); al final se oculta y vuelve a su lugar
+function NS.Vanish(f, dx, dy, dur, done)
+  if not f then return end
+  local token = {}
+  moving[f] = token
+  if not On() then f:Hide(); if done then done() end; return end
+  local a = Anchor(f)
+  dx, dy = dx or 0, dy or 0
+  Tween(dur or 0.3, function(p)
+    if moving[f] ~= token then return end
+    f:SetAlpha(1 - p)
+    if a then Place(f, a, dx * p, dy * p) end
+  end, 0, function()
+    if moving[f] ~= token then return end
+    f:Hide(); f:SetAlpha(1)
+    if a then Place(f, a, 0, 0) end
+    moving[f] = nil
+    if done then done() end
+  end, OutCubic)
+end
+
+-- Rebote corto de un ícono (crece desde chico y se pasa un poquito)
+function NS.Pop(tex, size, dur)
+  if not tex or not On() then return end
+  Tween(dur or 0.35, function(p)
+    local s = size * (0.55 + 0.45 * p)
+    tex:SetSize(s, s)
+  end, 0, function() tex:SetSize(size, size) end, OutBack)
+end
+
 local function Tex(parent, path, w, h, layer, add, color)
   local t = parent:CreateTexture(nil, layer or "OVERLAY")
   t:SetTexture(path)

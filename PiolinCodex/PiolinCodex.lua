@@ -73,18 +73,62 @@ alert.text:SetWidth(700)
 alert.text:SetJustifyH("CENTER")
 local lastAlert = {}
 
+-- Estilo nuevo del cartel: tarjeta oscura con franja de color, ícono y texto (se arma la primera vez)
+local function StyleAlert()
+  if rawget(alert, "styled") or not NS.Style then return end
+  rawset(alert, "styled", true)
+  local S = NS.Style
+  local bo = alert:CreateTexture(nil, "BACKGROUND", nil, -8); bo:SetAllPoints(); bo:SetColorTexture(S.C3(S.K.edge))
+  local bg = alert:CreateTexture(nil, "BACKGROUND", nil, -7); bg:SetPoint("TOPLEFT", 1, -1); bg:SetPoint("BOTTOMRIGHT", -1, 1)
+  bg:SetColorTexture(S.K.bg[1], S.K.bg[2], S.K.bg[3], 0.96)
+  alert.stripe = alert:CreateTexture(nil, "BORDER")
+  alert.stripe:SetPoint("TOPLEFT", 1, -1); alert.stripe:SetPoint("BOTTOMLEFT", 1, 1); alert.stripe:SetWidth(3)
+  alert.icon:ClearAllPoints(); alert.icon:SetSize(30, 30); alert.icon:SetPoint("LEFT", 16, 0)
+  alert.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  S.Font(alert.text, 15, nil, true)
+  alert.text:ClearAllPoints(); alert.text:SetPoint("LEFT", alert.icon, "RIGHT", 12, 0)
+  alert.text:SetJustifyH("LEFT")
+end
+
 function NS.Alert(key, text, icon, r, g, b, cooldown)
   local now = GetTime()
   if key and lastAlert[key] and now - lastAlert[key] < (cooldown or 20) then return end
   if key then lastAlert[key] = now end
+  StyleAlert()
   alert.icon:SetTexture(icon or "Interface\\Icons\\Spell_Nature_LightningShield")
   alert.text:SetText(text)
   alert.text:SetTextColor(r or 1, g or 0.82, b or 0.25)
+  if rawget(alert, "styled") then
+    -- el ancho sigue al texto (hasta 620 px; más largo, pasa a dos renglones)
+    alert.text:SetWidth(620)
+    local tw = math.min(620, alert.text:GetStringWidth() + 4)
+    alert.text:SetWidth(tw)
+    alert:SetSize(tw + 74, math.max(54, alert.text:GetStringHeight() + 26))
+    alert.stripe:SetColorTexture(r or 1, g or 0.82, b or 0.25)
+  end
   if UIFrameFadeRemoveFrame then UIFrameFadeRemoveFrame(alert) end
   alert:SetAlpha(1)
   alert:Show()
+  local shownAt = GetTime()
+  rawset(alert, "shownAt", shownAt)
+  local animated = rawget(alert, "styled") and NS.Appear and NS.Tween
+  if animated then
+    -- entra bajando con fundido, el ícono rebota y la franja de color se llena de arriba a abajo
+    NS.Appear(alert, 0, 14, 0.28)
+    NS.Pop(alert.icon, 30, 0.4)
+    local stripe, h = alert.stripe, alert:GetHeight()
+    if not (PiolinCodexDB and PiolinCodexDB.noAnim) then
+      stripe:ClearAllPoints(); stripe:SetPoint("TOPLEFT", 1, -1); stripe:SetHeight(1)
+      NS.Tween(0.35, function(p) stripe:SetHeight(math.max(1, (h - 2) * p)) end, 0.08, function()
+        stripe:ClearAllPoints(); stripe:SetPoint("TOPLEFT", 1, -1); stripe:SetPoint("BOTTOMLEFT", 1, 1)
+      end, NS.OutCubic)
+    end
+  end
   C_Timer.After(4, function()
-    if UIFrameFadeOut then
+    if rawget(alert, "shownAt") ~= shownAt then return end   -- llegó otro aviso: ese maneja la salida
+    if animated then
+      NS.Vanish(alert, 0, 12, 0.45)
+    elseif UIFrameFadeOut then
       UIFrameFadeOut(alert, 1.5, 1, 0)
       C_Timer.After(1.6, function() alert:Hide() end)
     else
@@ -541,31 +585,38 @@ local function ShowTrainerPanel()
   if IsTradeskillTrainer and IsTradeskillTrainer() then return end
   local anchor = ClassTrainerFrame
   if not anchor then return end
+  local wasShown = trainerPanel and trainerPanel:IsShown() and trainerPanel:IsVisible()
   if not trainerPanel then
+    local S = NS.Style
     trainerPanel = CreateFrame("Frame", "PiolinCodexTrainerPanel", anchor, "BasicFrameTemplateWithInset")
+    S.SkinWindow(trainerPanel)
     trainerPanel:SetSize(280, 360)
-    local t = trainerPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    t:SetPoint("TOP", 0, -6)
-    t:SetText(C.G .. "Códice: qué entrenar" .. C.E)
-    local y = -34
-    local function add(text, r, g, b, font)
-      local fs = trainerPanel:CreateFontString(nil, "OVERLAY", font or "GameFontHighlightSmall")
+    local t = S.Font(trainerPanel:CreateFontString(nil, "OVERLAY"), 12.5, S.K.title, true)
+    t:SetPoint("TOPLEFT", 12, -8)
+    t:SetText("Qué entrenar")
+    local y = -38
+    local function add(text, r, g, b, head)
+      local fs = S.Font(trainerPanel:CreateFontString(nil, "OVERLAY"), head and 12 or 11.5, nil, head)
       fs:SetPoint("TOPLEFT", 14, y)
       fs:SetWidth(252)
       fs:SetJustifyH("LEFT")
       fs:SetText(text)
       fs:SetTextColor(r, g, b)
-      y = y - fs:GetStringHeight() - 5
+      y = y - fs:GetStringHeight() - (head and 7 or 5)
     end
-    add("Comprá", 0.5, 0.82, 0.42, "GameFontNormal")
-    for _, s in ipairs(NS.TRAINER.buy) do add("+ " .. s, 1, 1, 1) end
-    y = y - 6
-    add("Salteá", 1, 0.4, 0.35, "GameFontNormal")
-    for _, s in ipairs(NS.TRAINER.skip) do add("- " .. s, 0.8, 0.8, 0.8) end
+    add("Comprá", 0.5, 0.86, 0.4, true)
+    for _, s in ipairs(NS.TRAINER.buy) do add("+  " .. s, 0.86, 0.89, 0.93) end
+    y = y - 8
+    add("Salteá", 1, 0.42, 0.4, true)
+    for _, s in ipairs(NS.TRAINER.skip) do add("–  " .. s, 0.53, 0.57, 0.64) end
+    -- el alto sigue al contenido, así ninguna línea queda afuera
+    trainerPanel:SetHeight(-y + 14)
   end
   trainerPanel:ClearAllPoints()
   trainerPanel:SetPoint("TOPLEFT", anchor, "TOPRIGHT", -30, -12)
   trainerPanel:Show()
+  -- entra deslizándose desde el borde de la ventana del instructor
+  if not wasShown and NS.Appear then NS.Appear(trainerPanel, -14, 0, 0.25) end
 end
 
 ----------------------------------------------------------------------
@@ -653,14 +704,28 @@ local function BuildMinimapButton()
   end)
   mb:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
   mb:SetScript("OnClick", NS.Toggle)
+  -- al pasar el mouse el ícono crece un poco y se aclara; al salir vuelve
+  local size = 20
+  local function hover(on)
+    local from, to = size, on and 23 or 20
+    if NS.Tween and not DB().noAnim then
+      NS.Tween(0.15, function(p) size = from + (to - from) * p; icon:SetSize(size, size) end, 0, nil, NS.OutCubic)
+    else
+      size = to; icon:SetSize(to, to)
+    end
+    local v = on and 1 or 0.9
+    icon:SetVertexColor(v, v, v)
+  end
+  icon:SetVertexColor(0.9, 0.9, 0.9)
   mb:SetScript("OnEnter", function(self)
+    hover(true)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:AddLine("Códice de Piolin", 0.85, 0.66, 0.25)
     GameTooltip:AddLine("Clic: abrir o cerrar", 1, 1, 1)
     GameTooltip:AddLine("Arrastrar: mover el botón", 1, 1, 1)
     GameTooltip:Show()
   end)
-  mb:SetScript("OnLeave", GameTooltip_Hide)
+  mb:SetScript("OnLeave", function() hover(false); GameTooltip_Hide() end)
   place()
   mb:SetShown(not DB().hideMinimap)
   NS.minimapButton = mb

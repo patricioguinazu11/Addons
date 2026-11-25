@@ -182,6 +182,18 @@ NS.TABS = {
     },
   },
   {
+    key = "teclas", label = "Teclas", icon = "Interface\\Icons\\INV_Misc_Note_02",
+    lead = "Propuesta de teclas para Mejora en Forever, armada con el criterio de jugadores reales. Solo para mirar: no cambia tus barras.",
+    keys = true,
+    sections = {},
+  },
+  {
+    key = "pantalla", label = "Pantalla", icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
+    lead = "Diseños del Modo edición que compartieron jugadores de Forever. Mirá cómo acomodan la pantalla y, si te gusta uno, copiá su texto e importalo vos desde el juego.",
+    layouts = true,
+    sections = {},
+  },
+  {
     key = "notas", label = "Notas", icon = "Interface\\Icons\\INV_Misc_Book_11",
     lead = "Escribí lo que quieras: se guarda solo en tu cuenta.",
     notes = true,

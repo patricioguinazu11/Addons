@@ -108,7 +108,8 @@ local function Dropdown(parent, width, items, get, set)
   if not ok or not UIDropDownMenu_Initialize then
     -- alternativa: un botón que va pasando por las opciones
     local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    b:SetSize(width + 20, 22)
+    if NS.Style then NS.Style.SkinButton(b) end
+    b:SetSize(width + 20, 24)
     local function label()
       local v = get()
       for _, it in ipairs(items) do if it[1] == v then return it[2] end end
@@ -151,44 +152,49 @@ function NS.BuildSoundPanel(parentCategory, parentPanel)
   local p = CreateFrame("Frame", "PiolinCodexSoundOptions")
   p.name = "Sonido"
   p.parent = parentPanel and parentPanel.name
-  local title = p:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+  local S = NS.Style
+  local title = S.Font(p:CreateFontString(nil, "ARTWORK"), 18, S.K.title, true)
   title:SetPoint("TOPLEFT", 16, -16)
   title:SetText("Códice de Piolin · Sonido")
-  local sub = p:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+  local sub = S.Font(p:CreateFontString(nil, "ARTWORK"), 11.5, S.K.mute)
   sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
   sub:SetWidth(560)
   sub:SetJustifyH("LEFT")
   sub:SetText("Todos los sonidos son del propio WoW. El volumen lo maneja la barra del canal que elijas en Opciones → Sonido del juego.")
 
-  local master = CreateFrame("CheckButton", nil, p, "UICheckButtonTemplate")
-  master:SetPoint("TOPLEFT", 16, -60)
-  local ml = p:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-  ml:SetPoint("LEFT", master, "RIGHT", 4, 0)
+  local master = S.SkinCheck(CreateFrame("CheckButton", nil, p, "UICheckButtonTemplate"))
+  master:SetSize(24, 24)
+  master:SetPoint("TOPLEFT", 14, -76)
+  local ml = S.Font(p:CreateFontString(nil, "ARTWORK"), 12.5, S.K.parch)
+  ml:SetPoint("LEFT", master, "RIGHT", 6, 0)
   ml:SetText("Sonidos del Códice")
   master:SetScript("OnClick", function(self) DB().noSound = not self:GetChecked() or nil end)
 
-  local cl = p:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-  cl:SetPoint("TOPLEFT", 300, -66)
+  local cl = S.Font(p:CreateFontString(nil, "ARTWORK"), 12.5, S.K.title, true)
+  cl:SetPoint("TOPLEFT", 300, -81)
   cl:SetText("Canal")
   local chanItems = {}
   for _, c in ipairs(NS.CHANNELS) do table.insert(chanItems, { c[1], c[2] }) end
   local chan = Dropdown(p, 190, chanItems, function() return DB().soundChannel or "Dialog" end, function(v) DB().soundChannel = v end)
-  chan:SetPoint("LEFT", cl, "RIGHT", 0, -2)
+  chan:SetPoint("LEFT", cl, "RIGHT", 10, 0)
 
-  local vl = p:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-  vl:SetPoint("TOPLEFT", 20, -104)
+  local vl = S.Font(p:CreateFontString(nil, "ARTWORK"), 12.5, S.K.title, true)
+  vl:SetPoint("TOPLEFT", 20, -120)
   vl:SetText("Volumen del Códice")
   local okS, slider = pcall(CreateFrame, "Slider", "PiolinCodexVolume", p, "OptionsSliderTemplate")
   if not okS then
-    slider = CreateFrame("Slider", "PiolinCodexVolume", p, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    -- deslizador plano: riel fino y tirador azul
+    slider = CreateFrame("Slider", "PiolinCodexVolume", p)
     slider:SetOrientation("HORIZONTAL")
     slider:SetHeight(16)
-    slider:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
-    if slider.SetBackdrop then
-      slider:SetBackdrop({ bgFile = "Interface\\Buttons\\UI-SliderBar-Background", edgeFile = "Interface\\Buttons\\UI-SliderBar-Border", tile = true, tileSize = 8, edgeSize = 8, insets = { left = 3, right = 3, top = 6, bottom = 6 } })
-    end
-    slider.valueText = slider:CreateFontString("PiolinCodexVolumeText", "OVERLAY", "GameFontHighlightSmall")
-    slider.valueText:SetPoint("TOP", slider, "BOTTOM", 0, -2)
+    local rail = slider:CreateTexture(nil, "BACKGROUND")
+    rail:SetPoint("LEFT", 0, 0); rail:SetPoint("RIGHT", 0, 0); rail:SetHeight(4)
+    rail:SetColorTexture(S.C3(S.K.track))
+    slider:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+    local thumb = slider.GetThumbTexture and slider:GetThumbTexture()
+    if type(thumb) == "table" then thumb:SetSize(10, 16); thumb:SetVertexColor(S.C3(S.K.accent)) end
+    slider.valueText = S.Font(slider:CreateFontString("PiolinCodexVolumeText", "OVERLAY"), 10.5, S.K.mute)
+    slider.valueText:SetPoint("LEFT", slider, "RIGHT", 10, 0)
   end
   slider:SetPoint("LEFT", vl, "RIGHT", 24, 0)
   slider:SetWidth(220)
@@ -198,7 +204,7 @@ function NS.BuildSoundPanel(parentCategory, parentPanel)
   local low, high, txt = _G.PiolinCodexVolumeLow, _G.PiolinCodexVolumeHigh, _G.PiolinCodexVolumeText
   if low then low:SetText("10%") end
   if high then high:SetText("100%") end
-  local vhint = p:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+  local vhint = S.Font(p:CreateFontString(nil, "ARTWORK"), 10.5, S.K.dim)
   vhint:SetPoint("TOPLEFT", vl, "BOTTOMLEFT", 0, -10)
   vhint:SetWidth(560)
   vhint:SetJustifyH("LEFT")
@@ -213,9 +219,9 @@ function NS.BuildSoundPanel(parentCategory, parentPanel)
   local items = {}
   for _, s in ipairs(NS.SOUNDS) do table.insert(items, { s.key, s.t }) end
   local rows = {}
-  local y = -160
+  local y = -176
   for _, e in ipairs(NS.SOUND_EVENTS) do
-    local l = p:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    local l = S.Font(p:CreateFontString(nil, "ARTWORK"), 12, S.K.parch)
     l:SetPoint("TOPLEFT", 20, y - 6)
     l:SetWidth(250)
     l:SetJustifyH("LEFT")
@@ -224,17 +230,17 @@ function NS.BuildSoundPanel(parentCategory, parentPanel)
       function() return (DB().sounds and DB().sounds[e.key]) or e.def end,
       function(v) DB().sounds = DB().sounds or {}; DB().sounds[e.key] = v; NS.PlaySoundKey(v) end)
     dd:SetPoint("TOPLEFT", 260, y)
-    local play = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
-    play:SetSize(70, 22)
-    play:SetPoint("LEFT", dd, "RIGHT", -6, 2)
+    local play = S.SkinButton(CreateFrame("Button", nil, p, "UIPanelButtonTemplate"))
+    play:SetSize(70, 24)
+    play:SetPoint("LEFT", dd, "RIGHT", 6, 0)
     play:SetText("Probar")
     play:SetScript("OnClick", function() NS.PlaySoundKey((DB().sounds and DB().sounds[e.key]) or e.def) end)
     table.insert(rows, dd)
     y = y - 30
   end
 
-  local reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
-  reset:SetSize(200, 24)
+  local reset = S.SkinButton(CreateFrame("Button", nil, p, "UIPanelButtonTemplate"))
+  reset:SetSize(200, 26)
   reset:SetPoint("TOPLEFT", 20, y - 10)
   reset:SetText("Volver a los de fábrica")
   reset:SetScript("OnClick", function()

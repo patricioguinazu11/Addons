@@ -209,18 +209,20 @@ NS.RecordPrice = function(id, unit, listed) Record(id, unit, listed) end
 NS.Missing = Missing
 
 local function BuildShop()
+  local S = NS.Style
   shop = CreateFrame("Frame", "PiolinCodexShop", UIParent, "BasicFrameTemplateWithInset")
+  if S then S.SkinWindow(shop) end
   shop:SetSize(260, 120)
   shop:SetFrameStrata("HIGH")
-  shop.title = shop:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  shop.title:SetPoint("TOP", 0, -6)
-  shop.title:SetText(C.G .. "Códice: lista de compras" .. C.E)
-  shop.sub = shop:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  shop.sub:SetPoint("TOPLEFT", 14, -32)
-  shop.sub:SetWidth(232)
+  shop.title = S.Font(shop:CreateFontString(nil, "OVERLAY"), 12.5, S.K.title, true)
+  shop.title:SetPoint("TOPLEFT", 12, -8)
+  shop.title:SetText("Lista de compras")
+  shop.sub = S.Font(shop:CreateFontString(nil, "OVERLAY"), 11, S.K.mute)
+  shop.sub:SetPoint("TOPLEFT", 12, -34)
+  shop.sub:SetWidth(236)
   shop.sub:SetJustifyH("LEFT")
   shop.lines = {}
-  shop.total = shop:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  shop.total = S.Font(shop:CreateFontString(nil, "OVERLAY"), 11, S.K.parch)
   shop.total:SetJustifyH("LEFT")
   shop:Hide()
 end
@@ -229,11 +231,11 @@ local function ShopLine(i)
   local b = shop.lines[i]
   if b then return b end
   b = CreateFrame("Button", nil, shop)
-  b:SetSize(232, 16)
-  b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  b:SetSize(236, 18)
+  b.text = NS.Style.Font(b:CreateFontString(nil, "OVERLAY"), 11.5, NS.Style.K.parch)
   b.text:SetAllPoints()
   b.text:SetJustifyH("LEFT")
-  b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+  local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.05)
   shop.lines[i] = b
   return b
 end
@@ -244,10 +246,11 @@ function NS.RefreshShopping()
   for _, b in ipairs(shop.lines) do b:Hide() end
   if not list or #list == 0 then shop:Hide(); return end
   shop.sub:SetText("Peletería · " .. tier.recipe)
-  local y, total, unknown = -50, 0, false
+  local y, total, unknown = -54, 0, false
   for i, it in ipairs(list) do
     local b = ShopLine(i)
-    b:SetPoint("TOPLEFT", 14, y)
+    b:SetAlpha(1)
+    b:SetPoint("TOPLEFT", 12, y)
     local p = Price(it.id)
     local cost = p and (" · ~" .. Money(p * it.need)) or ""
     if p then total = total + p * it.need else unknown = true end
@@ -270,6 +273,8 @@ function NS.RefreshShopping()
               left = left - q
             end
             Print("compraste " .. it.need .. "x " .. it.name .. ".")
+            -- la línea comprada se desvanece y después la lista se reacomoda
+            if NS.Tween and not DB().noAnim then NS.Tween(0.3, function(p) b:SetAlpha(1 - p) end, 0, nil, NS.OutCubic) end
             C_Timer.After(0.5, NS.RefreshShopping)
             return
           end
@@ -285,10 +290,10 @@ function NS.RefreshShopping()
     end)
     b:SetScript("OnLeave", GameTooltip_Hide)
     b:Show()
-    y = y - 17
+    y = y - 19
   end
   shop.total:ClearAllPoints()
-  shop.total:SetPoint("TOPLEFT", 14, y - 4)
+  shop.total:SetPoint("TOPLEFT", 12, y - 6)
   if total > 0 then
     shop.total:SetText("Total estimado: " .. Money(total) .. (unknown and " |cff8c806b(faltan precios)|r" or ""))
   else
@@ -300,12 +305,16 @@ end
 local function ShowShop(mode, anchor)
   NS.lastShopAnchor = anchor
   if DB().noShop or not anchor then return end
+  local first = not shop
   if not shop then BuildShop() end
+  local wasShown = not first and shop:IsShown()
   shop.mode = mode
   shop:ClearAllPoints()
   shop:SetPoint("TOPLEFT", anchor, "TOPRIGHT", mode == "vendor" and -30 or 4, mode == "vendor" and -12 or -12)
   shop:Show()
   NS.RefreshShopping()
+  -- entra deslizándose desde el borde de la ventana del vendedor o la subasta
+  if not wasShown and shop:IsShown() and NS.Appear then NS.Appear(shop, -14, 0, 0.25) end
 end
 
 ----------------------------------------------------------------------

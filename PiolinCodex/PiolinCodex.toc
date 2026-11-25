@@ -2,13 +2,14 @@
 ## Title: |cffd9a93fCódice de Piolin|r
 ## Notes: Guía personal de Piolin (Enano Chamán Mejora): misiones, ruta 20-60, profesiones y macros. /piolin
 ## Author: Patricio
-## Version: 4.0.1
+## Version: 4.1.0
 ## SavedVariables: PiolinCodexDB
 ## OptionalDeps: TomTom
 
 Compat.lua
 Data.lua
 DataExtra.lua
+DataLayouts.lua
 DataTrade.lua
 Auto.lua
 Sound.lua

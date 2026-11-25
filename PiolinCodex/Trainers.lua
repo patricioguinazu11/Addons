@@ -210,8 +210,9 @@ NS.PageExtras.oficios = function(P, H)
   local K, CW = H.K, H.CW
   local card = P:Card("Instructores", "Interface\\Icons\\INV_Misc_Book_09", K.water)
   local track = CreateFrame("Button", nil, card.frame, "UIPanelButtonTemplate")
-  track:SetSize(190, 22)
-  track:SetPoint("TOPRIGHT", -12, -9)
+  if NS.Style then NS.Style.SkinButton(track) end
+  track:SetSize(180, 22)
+  track:SetPoint("TOPRIGHT", -12, -7)
   local function paintTrack() track:SetText(TrackingOn() and "Minimapa: rastreando" or "Rastrear en el minimapa") end
   track:SetScript("OnClick", function() NS.SetTrainerTracking(not TrackingOn()); C_Timer.After(0.2, paintTrack) end)
   track:SetScript("OnEnter", function(b)
@@ -234,7 +235,8 @@ NS.PageExtras.oficios = function(P, H)
     r.info:SetPoint("TOPLEFT", 48, card.y - 15)
     r.info:SetWidth(CW - 48 - 110)
     r.go = CreateFrame("Button", nil, card.frame, "UIPanelButtonTemplate")
-    r.go:SetSize(84, 20)
+    if NS.Style then NS.Style.SkinButton(r.go) end
+    r.go:SetSize(84, 22)
     r.go:SetPoint("TOPRIGHT", -14, card.y - 4)
     r.go:SetText("Ir")
     rows[i] = r

@@ -39,10 +39,15 @@ local function BuildArrow()
   arrow.tex = arrow:CreateTexture(nil, "ARTWORK")
   arrow.tex:SetAllPoints()
   arrow.tex:SetTexture("Interface\\Minimap\\MinimapArrow")
+  local S = NS.Style
   arrow.title = arrow:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  arrow.title:SetPoint("TOP", arrow, "BOTTOM", 0, -2)
+  arrow.title:SetPoint("TOP", arrow, "BOTTOM", 0, -4)
   arrow.dist = arrow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   arrow.dist:SetPoint("TOP", arrow.title, "BOTTOM", 0, -2)
+  if S then
+    S.Font(arrow.title, 12.5, S.K.title, true); arrow.title:SetShadowOffset(1, -1); arrow.title:SetShadowColor(0, 0, 0, 1)
+    S.Font(arrow.dist, 11, S.K.parch); arrow.dist:SetShadowColor(0, 0, 0, 1)
+  end
   arrow:SetScript("OnClick", function() NS.ClearWaypoint(true) end)
   arrow:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
@@ -52,10 +57,10 @@ local function BuildArrow()
     GameTooltip:Show()
   end)
   arrow:SetScript("OnLeave", GameTooltip_Hide)
-  local elapsed = 0
+  local elapsed, arriving = 0, false
   arrow:SetScript("OnUpdate", function(self, dt)
     elapsed = elapsed + dt
-    if elapsed < 0.05 or not way then return end
+    if elapsed < 0.05 or not way or arriving then return end
     elapsed = 0
     local pos = C_Map and C_Map.GetPlayerMapPosition and C_Map.GetPlayerMapPosition(way.map, "player")
     local px, py
@@ -79,12 +84,23 @@ local function BuildArrow()
     if yards < 8 then
       Print("llegaste a " .. way.title .. ".")
       NS.Sound("arrive")
-      NS.ClearWaypoint()
+      if NS.Vanish and NS.Tween and not DB().noAnim then
+        -- llegada: la flecha crece y se desvanece antes de borrarse
+        arriving = true
+        NS.Tween(0.45, function(p) self:SetScale(1 + 0.45 * p) end, 0, function() self:SetScale(1) end, NS.OutCubic)
+        NS.Vanish(self, 0, 0, 0.45, function() arriving = false; NS.ClearWaypoint() end)
+      else
+        NS.ClearWaypoint()
+      end
       return
     end
     local target = math.atan2(-east, north)          -- ángulo antihorario desde el norte
     local facing = GetPlayerFacing and GetPlayerFacing() or 0
     self.tex:SetRotation(target - facing)
+    -- cerca del destino (menos de 30 m) la flecha late suave
+    if yards < 30 and not DB().noAnim then
+      self.tex:SetAlpha(0.6 + 0.4 * (0.5 + 0.5 * math.sin(GetTime() * 7)))
+    end
     self.dist:SetText(math.floor(yards + 0.5) .. " m")
   end)
   arrow:Hide()
@@ -129,7 +145,8 @@ end
 function NS.ClearWaypoint(manual)
   way = nil
   DB().way = nil
-  if arrow then arrow:Hide() end
+  if arrow and arrow:IsShown() and manual and NS.Vanish then NS.Vanish(arrow, 0, 8, 0.25)
+  elseif arrow then arrow:Hide() end
   if pin then pin:Hide() end
   if C_Map and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
   if manual then Print("flecha quitada.") end
@@ -140,7 +157,14 @@ function NS.SetWaypoint(map, x, y, title, quiet)
   DB().way = { map, x, y, title }
   if not arrow then BuildArrow() end
   arrow.title:SetText(title)
+  local wasShown = arrow:IsShown()
   arrow:SetShown(not DB().noArrow)
+  if not wasShown and arrow:IsShown() and NS.Appear and NS.Tween and not DB().noAnim then
+    -- aparece bajando con fundido y un pequeño crecimiento
+    NS.Appear(arrow, 0, 10, 0.3)
+    arrow:SetScale(0.8)
+    NS.Tween(0.35, function(p) arrow:SetScale(0.8 + 0.2 * p) end, 0, function() arrow:SetScale(1) end, NS.OutCubic)
+  end
   UpdatePin()
   -- pin nativo del mapa, si el cliente lo tiene
   if C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
@@ -228,14 +252,11 @@ NS.PageExtras.misiones = function(P, H)
   local card = P:Card("Tu registro de misiones", "Interface\\GossipFrame\\AvailableQuestIcon", K.gold)
   local L = {}
   L.count = card:Text("", 13, K.parch)
-  L.bar = CreateFrame("StatusBar", nil, card.frame)
-  L.bar:SetSize(H.CW - 28, 12)
-  L.bar:SetPoint("TOPLEFT", 14, card.y)
-  L.bar:SetStatusBarTexture("Interface\\PaperDollInfoFrame\\UI-Character-Skills-Bar")
-  L.bar:SetStatusBarColor(1, 0.82, 0)
+  L.bar = H.Bar(card.frame, H.CW - 28, 4, K.accent or K.water)
+  L.bar:SetPoint("TOPLEFT", 14, card.y - 2)
+  L.bar.text:Hide()
   L.bar:SetMinMaxValues(0, 20)
-  local bb = L.bar:CreateTexture(nil, "BACKGROUND"); bb:SetAllPoints(); bb:SetColorTexture(0, 0, 0, 0.55)
-  card.y = card.y - 20
+  card.y = card.y - 16
   L.ready = card:Text(" \n ", 11.5, K.ok)
   L.gray = card:Text(" \n ", 11.5, K.dim)
   L.guide = card:Text(" ", 11.5, K.water)
@@ -271,28 +292,31 @@ local OPTIONS = {
   { key = "noArrow", inv = true, t = "Mostrar la flecha del botón “Ir”", d = "Si la apagás, queda solo el pin en el mapa." },
   { key = "ownArrow", t = "Usar la flecha del Códice aunque tenga TomTom", d = "Por defecto usa TomTom si está instalado." },
   { key = "hideMinimap", inv = true, t = "Botón del rayo en el minimapa", d = "Abre y cierra el Códice." },
+  { key = "noMiniStatus", inv = true, t = "Mini estado junto al minimapa", d = "Bolsas libres, durabilidad, piedra de hogar y tienda." },
 }
 
 local panel, category
 local function BuildPanel()
   panel = CreateFrame("Frame", "PiolinCodexOptions")
   panel.name = "Códice de Piolin"
-  local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+  local S = NS.Style
+  local title = S.Font(panel:CreateFontString(nil, "ARTWORK"), 18, S.K.title, true)
   title:SetPoint("TOPLEFT", 16, -16)
   title:SetText("Códice de Piolin")
-  local sub = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+  local sub = S.Font(panel:CreateFontString(nil, "ARTWORK"), 11.5, S.K.mute)
   sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
   sub:SetText("Tu guía de Enano Chamán Mejora. Prendé o apagá cada función.")
   local y = -64
   panel.checks = {}
   for _, o in ipairs(OPTIONS) do
-    local cb = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-    cb:SetPoint("TOPLEFT", 16, y)
-    local lab = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    lab:SetPoint("LEFT", cb, "RIGHT", 4, 6)
+    local cb = S.SkinCheck(CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate"))
+    cb:SetSize(24, 24)
+    cb:SetPoint("TOPLEFT", 14, y)
+    local lab = S.Font(panel:CreateFontString(nil, "ARTWORK"), 12.5, S.K.parch)
+    lab:SetPoint("LEFT", cb, "RIGHT", 6, 6)
     lab:SetText(o.t)
-    local d = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    d:SetPoint("TOPLEFT", lab, "BOTTOMLEFT", 0, -2)
+    local d = S.Font(panel:CreateFontString(nil, "ARTWORK"), 10.5, S.K.dim)
+    d:SetPoint("TOPLEFT", lab, "BOTTOMLEFT", 0, -3)
     d:SetText(o.d)
     cb.opt = o
     cb:SetScript("OnClick", function(self)
@@ -300,6 +324,7 @@ local function BuildPanel()
       if o.inv then v = not v end
       DB()[o.key] = v or nil
       if o.key == "hideMinimap" and NS.minimapButton then NS.minimapButton:SetShown(not DB().hideMinimap) end
+      if o.key == "noMiniStatus" and NS.ShowMiniStatus then NS.ShowMiniStatus(not DB().noMiniStatus) end
       if o.key == "noArrow" and arrow and way then arrow:SetShown(not DB().noArrow) end
     end)
     table.insert(panel.checks, cb)
@@ -307,14 +332,14 @@ local function BuildPanel()
   end
 
   -- tecla
-  local kt = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+  local kt = S.Font(panel:CreateFontString(nil, "ARTWORK"), 13, S.K.title, true)
   kt:SetPoint("TOPLEFT", 380, -64)
   kt:SetText("Tecla para abrir el Códice")
-  local kb = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-  kb:SetSize(180, 24)
+  local kb = S.SkinButton(CreateFrame("Button", nil, panel, "UIPanelButtonTemplate"))
+  kb:SetSize(180, 26)
   kb:SetPoint("TOPLEFT", kt, "BOTTOMLEFT", 0, -8)
-  local khint = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-  khint:SetPoint("TOPLEFT", kb, "BOTTOMLEFT", 0, -4)
+  local khint = S.Font(panel:CreateFontString(nil, "ARTWORK"), 10.5, S.K.dim)
+  khint:SetPoint("TOPLEFT", kb, "BOTTOMLEFT", 0, -6)
   khint:SetWidth(220)
   khint:SetJustifyH("LEFT")
   khint:SetText("Tocá el botón y apretá la tecla o combinación (por ejemplo Shift+C). Esc cancela. También está en Atajos de teclado → AddOns.")
@@ -340,8 +365,8 @@ local function BuildPanel()
     paintKey()
   end)
   kb:SetScript("OnClick", function() kb:SetText("Apretá una tecla…"); capture:Show() end)
-  local kclear = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-  kclear:SetSize(90, 24)
+  local kclear = S.SkinButton(CreateFrame("Button", nil, panel, "UIPanelButtonTemplate"))
+  kclear:SetSize(90, 26)
   kclear:SetPoint("LEFT", kb, "RIGHT", 6, 0)
   kclear:SetText("Quitar")
   kclear:SetScript("OnClick", function()
@@ -351,18 +376,18 @@ local function BuildPanel()
   end)
 
   -- acciones
-  local at = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+  local at = S.Font(panel:CreateFontString(nil, "ARTWORK"), 13, S.K.title, true)
   at:SetPoint("TOPLEFT", 380, -190)
   at:SetText("Acciones")
-  local function action(text, y2, fn)
-    local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-    b:SetSize(180, 24)
+  local function action(text, y2, fn, kind)
+    local b = S.SkinButton(CreateFrame("Button", nil, panel, "UIPanelButtonTemplate"), kind)
+    b:SetSize(180, 26)
     b:SetPoint("TOPLEFT", 380, y2)
     b:SetText(text)
     b:SetScript("OnClick", fn)
     return b
   end
-  action("Abrir el Códice", -214, function() NS.Toggle() end)
+  action("Abrir el Códice", -214, function() NS.Toggle() end, "primary")
   action("Crear macros", -244, function() NS.CreateMacros() end)
   action("Quitar la flecha", -274, function() NS.ClearWaypoint(true) end)
   action("Probar un aviso", -304, function() NS.Alert(nil, "Así se ven los avisos del Códice", "Interface\\Icons\\Spell_Nature_LightningShield", 1, 0.82, 0.25) end)
@@ -372,7 +397,7 @@ local function BuildPanel()
     OnAccept = function() PiolinCodexDB.checks = {}; Print("tildes borradas. Escribí /reload para ver el cambio.") end,
     timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
   }
-  action("Borrar todas las tildes", -344, function() StaticPopup_Show("PIOLINCODEX_RESET") end)
+  action("Borrar todas las tildes", -344, function() StaticPopup_Show("PIOLINCODEX_RESET") end, "danger")
 
   panel:SetScript("OnShow", function()
     for _, cb in ipairs(panel.checks) do
@@ -401,6 +426,151 @@ function NS.OpenOptions()
     InterfaceOptionsFrame_OpenToCategory(panel)
   end
 end
+
+----------------------------------------------------------------------
+-- Mini estado junto al minimapa: bolsas libres, durabilidad, piedra de hogar y tienda
+----------------------------------------------------------------------
+local HEARTHSTONE = 6948
+local mini
+
+local function FreeBagSlots()
+  local CC = C_Container
+  local free, total = 0, 0
+  for bag = 0, 4 do
+    local n = (CC and CC.GetContainerNumSlots or GetContainerNumSlots)
+    local f = (CC and CC.GetContainerNumFreeSlots or GetContainerNumFreeSlots)
+    local slots = n and n(bag) or 0
+    local fr = f and f(bag) or 0
+    if type(fr) == "number" then free = free + fr end
+    if type(slots) == "number" then total = total + slots end
+  end
+  return free, total
+end
+
+local function HearthLeft()
+  local getCD = (C_Container and C_Container.GetItemCooldown) or GetItemCooldown
+  if not getCD then return nil end
+  local ok, start, dur = pcall(getCD, HEARTHSTONE)
+  if not ok or not start or not dur or dur == 0 or start == 0 then return 0 end
+  return math.max(0, start + dur - GetTime())
+end
+
+local function Clock(sec)
+  if sec >= 3600 then return math.floor(sec / 3600) .. "h" end
+  if sec >= 60 then return math.ceil(sec / 60) .. "m" end
+  return math.ceil(sec) .. "s"
+end
+
+local function BuildMiniStatus()
+  local S = NS.Style
+  if mini or not S then return end
+  mini = CreateFrame("Frame", "PiolinCodexMiniStatus", UIParent)
+  mini:SetSize(4 * 42 + 10, 52)
+  mini:SetFrameStrata("MEDIUM")
+  local pos = DB().miniPos
+  if pos then mini:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
+  else mini:SetPoint("TOP", Minimap, "BOTTOM", 0, -30) end
+  -- fondo plano con borde fino, como el resto del Códice
+  local bo = mini:CreateTexture(nil, "BACKGROUND", nil, -8); bo:SetAllPoints(); bo:SetColorTexture(S.C3(S.K.edge))
+  local bg = mini:CreateTexture(nil, "BACKGROUND", nil, -7); bg:SetPoint("TOPLEFT", 1, -1); bg:SetPoint("BOTTOMRIGHT", -1, 1)
+  bg:SetColorTexture(S.K.bg[1], S.K.bg[2], S.K.bg[3], 0.92)
+  -- se mueve arrastrando y recuerda dónde quedó
+  mini:SetMovable(true); mini:EnableMouse(true); mini:SetClampedToScreen(true)
+  mini:RegisterForDrag("LeftButton")
+  mini:SetScript("OnDragStart", mini.StartMoving)
+  mini:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local p, _, rp, x, y = self:GetPoint(1)
+    if p then DB().miniPos = { p, rp, x, y } end
+  end)
+  mini.items = {}
+  local defs = {
+    { key = "bags", icon = "Interface\\Icons\\INV_Misc_Bag_10", title = "Bolsas" },
+    { key = "dur", icon = "Interface\\Icons\\Trade_BlackSmithing", title = "Durabilidad" },
+    { key = "hearth", icon = "Interface\\Icons\\INV_Misc_Rune_01", title = "Piedra de hogar" },
+    { key = "tent", icon = "Interface\\Icons\\INV_Misc_Bag_09", title = "Tienda de campaña" },
+  }
+  for i, d in ipairs(defs) do
+    local b = CreateFrame("Frame", nil, mini)
+    b:SetSize(40, 44)
+    b:SetPoint("TOPLEFT", 6 + (i - 1) * 42, -4)
+    b.icon = S.Framed(b, d.icon, 24)
+    b.icon:SetPoint("TOP", 0, -2)
+    b.text = S.Font(b:CreateFontString(nil, "OVERLAY"), 10, S.K.title, true)
+    b.text:SetPoint("TOP", b.icon, "BOTTOM", 0, -3)
+    b.text:SetJustifyH("CENTER")
+    b:EnableMouse(true)
+    b:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+      GameTooltip:AddLine(d.title, S.C3(S.K.title))
+      if self.tip then GameTooltip:AddLine(self.tip, 1, 1, 1, true) end
+      GameTooltip:AddLine("Arrastrá el recuadro para moverlo.", 0.55, 0.6, 0.68)
+      GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", GameTooltip_Hide)
+    -- arrastrar desde un ícono también mueve el recuadro
+    b:RegisterForDrag("LeftButton")
+    b:SetScript("OnDragStart", function() mini:StartMoving() end)
+    b:SetScript("OnDragStop", function() mini:GetScript("OnDragStop")(mini) end)
+    mini.items[d.key] = b
+  end
+  mini:Hide()
+end
+
+-- Colores: verde = listo, gris = normal, naranja = ojo, rojo = urgente
+local function Paint(b, text, color, tip, dim)
+  local S = NS.Style
+  b.text:SetText(text)
+  b.text:SetTextColor(S.C3(color))
+  b.tip = tip
+  b.icon:SetDesaturated(dim and true or false)
+  b.icon:SetAlpha(dim and 0.55 or 1)
+end
+
+function NS.RefreshMiniStatus()
+  if not mini then return end
+  local K = NS.Style.K
+  local free, total = FreeBagSlots()
+  Paint(mini.items.bags, tostring(free), free <= 2 and K.bad or (free <= 6 and K.warn or K.title),
+    free .. " espacios libres de " .. total .. (free <= 2 and ". Vendé basura antes de seguir." or "."))
+  local dur = NS.Durability and NS.Durability() or 100
+  Paint(mini.items.dur, dur .. "%", dur <= 25 and K.bad or (dur <= 50 and K.warn or K.title),
+    "La pieza más gastada está al " .. dur .. "%." .. (dur <= 50 and " Pasá por un herrero." or ""))
+  local h = HearthLeft()
+  if h == nil then Paint(mini.items.hearth, "—", K.dim, "El juego no informa el tiempo de la piedra.", true)
+  elseif h <= 0 then Paint(mini.items.hearth, "lista", K.ok, "La piedra de hogar está lista para usar.")
+  else Paint(mini.items.hearth, Clock(h), K.mute, "Lista en " .. Clock(h) .. ".", true) end
+  local at = DB().tentAt
+  if not at then Paint(mini.items.tent, "—", K.dim, "Todavía no pusiste la tienda en esta cuenta.", true)
+  else
+    local left = 3600 - (time() - at)
+    if left <= 0 then Paint(mini.items.tent, "lista", K.ok, "Podés volver a poner la tienda de campaña.")
+    else Paint(mini.items.tent, Clock(left), K.mute, "Disponible en " .. Clock(left) .. ".", true) end
+  end
+end
+
+function NS.ShowMiniStatus(show)
+  BuildMiniStatus()
+  if not mini then return end
+  if show and not mini:IsShown() then
+    mini:Show(); NS.RefreshMiniStatus()
+    if NS.Appear then NS.Appear(mini, 0, 8, 0.3) end
+  elseif not show then
+    mini:Hide()
+  end
+end
+
+local miniEv = CreateFrame("Frame")
+NS.SafeEvents(miniEv, { "PLAYER_LOGIN", "BAG_UPDATE_DELAYED", "UPDATE_INVENTORY_DURABILITY", "BAG_UPDATE_COOLDOWN", "PLAYER_ENTERING_WORLD" })
+miniEv:SetScript("OnEvent", function(_, event)
+  if event == "PLAYER_LOGIN" then
+    NS.ShowMiniStatus(not DB().noMiniStatus)
+    -- los tiempos de la piedra y la tienda se actualizan solos cada pocos segundos
+    C_Timer.NewTicker(5, function() if mini and mini:IsShown() then NS.RefreshMiniStatus() end end)
+  else
+    NS.RefreshMiniStatus()
+  end
+end)
 
 ----------------------------------------------------------------------
 -- Eventos y comandos
