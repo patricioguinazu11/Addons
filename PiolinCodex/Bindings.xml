@@ -1,0 +1,8 @@
+<Bindings>
+  <Binding name="PIOLINCODEX_TOGGLE" header="PIOLINCODEX" category="ADDONS">
+    PiolinCodex_Toggle()
+  </Binding>
+  <Binding name="PIOLINCODEX_CLEARWAY" category="ADDONS">
+    PiolinCodex_ClearWay()
+  </Binding>
+</Bindings>
