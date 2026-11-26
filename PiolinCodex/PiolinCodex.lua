@@ -836,7 +836,8 @@ ev:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     local lvl = arg1
     local tip = NS.LEVEL_TIPS[lvl] or "Pasá por el instructor de chamán a ver qué hay nuevo."
     C_Timer.After(1.5, function()
-      NS.Alert("level", "¡Nivel " .. lvl .. "! " .. tip, "Interface\\Icons\\Ability_Shaman_Stormstrike", 1, 0.82, 0.25, 1)
+      -- con el cartel de nivel prendido, el consejo ya va adentro del cartel
+      if PiolinCodexDB.noLevelCard or not NS.ShowLevelCard then NS.Alert("level", "¡Nivel " .. lvl .. "! " .. tip, "Interface\\Icons\\Ability_Shaman_Stormstrike", 1, 0.82, 0.25, 1) end
       Print(C.H .. "Nivel " .. lvl .. ":" .. C.E .. " " .. tip)
       NS.AutoCheck(false)
     end)
@@ -873,6 +874,7 @@ SLASH_PIOLINCODEX2 = "/codice"
 SlashCmdList["PIOLINCODEX"] = function(msg)
   msg = (msg or ""):lower()
   if NS.TradeSlash and NS.TradeSlash(msg) then return end
+  if NS.LevelSlash and NS.LevelSlash(msg) then return end
   if msg == "macros" then
     NS.CreateMacros()
   elseif msg == "tienda" then
