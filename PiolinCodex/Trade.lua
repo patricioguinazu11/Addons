@@ -121,6 +121,58 @@ end
 NS.HookItemTooltip(AddTooltip)
 
 ----------------------------------------------------------------------
+-- Para qué sirve el material: en qué tramo de Peletería lo usás
+----------------------------------------------------------------------
+-- Materiales que no van directo a un tramo pero se convierten en uno que sí
+local DERIVED = {
+  [783] = { 4231, "Curado con sal da Piel ligera curada" },
+  [2934] = { 2318, "3 restos hacen 1 Cuero ligero" },
+}
+
+local function UsesOf(id)
+  local out = {}
+  for _, t in ipairs(NS.LW_TIERS or {}) do
+    for _, m in ipairs(t.mats) do
+      if m[1] == id then table.insert(out, { t = t, n = m[2], name = m[3] }) end
+    end
+  end
+  return out
+end
+NS.MatUses = UsesOf
+
+local function AddMatUse(tt)
+  if not PiolinCodexDB or DB().noMatUse then return end
+  local id = IdFromLink(NS.TipLink(tt))
+  if not id then return end
+  local uses, via = UsesOf(id), nil
+  if #uses == 0 and DERIVED[id] then via = DERIVED[id]; uses = UsesOf(via[1]) end
+  if #uses == 0 then return end
+  local rank = NS.Skill("Peletería")
+  tt:AddLine(" ")
+  tt:AddLine("|cffd9a93fCódice|r · Para Peletería" .. (rank and ("  |cff8c806b(vas por " .. rank .. ")|r") or ""), 1, 1, 1)
+  if via then tt:AddLine(via[2], 0.6, 0.75, 0.9) end
+  local shown = 0
+  for _, u in ipairs(uses) do
+    local t = u.t
+    if not (rank and rank >= t.max) and shown < 3 then
+      shown = shown + 1
+      local now = rank and rank >= t.min
+      local amount = via and (u.n .. " " .. u.name) or tostring(u.n)
+      local line = (now and "|cff7fd16aAhora|r · " or "") .. t.min .. "-" .. t.max .. "  " .. t.recipe .. ": " .. amount
+      if now and not via then
+        local have = GetItemCount(id, true) or 0
+        line = line .. (have >= u.n and "  |cff7fd16a(tenés " .. have .. ")|r" or "  |cffffd96a(tenés " .. have .. ")|r")
+      end
+      tt:AddLine(line, 0.86, 0.89, 0.93)
+    end
+  end
+  if shown == 0 then tt:AddLine("Ya pasaste los tramos que lo usan: lo podés vender.", 0.55, 0.5, 0.42) end
+  tt:Show()
+end
+
+NS.HookItemTooltip(AddMatUse)
+
+----------------------------------------------------------------------
 -- Escaneo de materiales
 ----------------------------------------------------------------------
 local scan = { queue = nil, idx = 0, waiting = false, page = 0, item = nil }

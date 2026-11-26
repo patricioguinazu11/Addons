@@ -240,7 +240,7 @@ NS.PageExtras.oficios = function(P, H)
     r.go:SetPoint("TOPRIGHT", -14, card.y - 4)
     r.go:SetText("Ir")
     rows[i] = r
-    card.y = card.y - 38
+    card.y = card.y - 50
   end
   card:Text("Primero los de tu zona; si no hay, el más cercano. Pasá el mouse por “Ir” para ver otros.", 10, K.dim)
   card:Finish()

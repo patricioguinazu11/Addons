@@ -480,20 +480,30 @@ local function NewPage(tab, parent)
       local isQuest = id and NS.AUTO and NS.AUTO.quest and NS.AUTO.quest[id]
       local pill = Pill(row, tag[1], tag[2])
       pill:SetPoint("TOPRIGHT", -12, -6)
-      -- el texto deja lugar para la etiqueta real (MAZMORRA es más ancha que MISIÓN)
-      local pillRoom = math.max(74, math.ceil(pill:GetWidth() or 0) + 12 + 10)
+      local pw = math.ceil(pill:GetWidth() or 0)
+      -- misiones: el estado ("¡entregar!" / "en tu registro") se muestra en el lugar de la etiqueta,
+      -- así no hace falta reservar otro espacio y el texto entra en menos renglones
+      if isQuest then
+        local ready, active = Pill(row, "¡entregar!", K.ok), Pill(row, "en tu registro", K.water)
+        for _, p in ipairs({ ready, active }) do
+          p:SetPoint("TOPRIGHT", -12, -6); p:Hide()
+          pw = math.max(pw, math.ceil(p:GetWidth() or 0))
+        end
+        row.SetQuestState = function(_, st)
+          rawset(row, "questState", st)
+          ready:SetShown(st == "ready"); active:SetShown(st == "active"); pill:SetShown(not st)
+        end
+      end
+      local pillRoom = math.max(62, pw + 12 + 8)
       -- con Questie instalado, las misiones de la guía sin coordenadas propias también tienen "Ir"
       local qGo = isQuest and not wp and NS.HasQuestie and NS.HasQuestie()
-      fs:SetWidth(CW - 2 - 36 - pillRoom - ((wp or qGo) and 26 or 0) - (isQuest and 78 or 0))
+      fs:SetWidth(CW - 2 - 36 - pillRoom - ((wp or qGo) and 26 or 0))
       fs:SetSpacing(2)
       fs:SetText(text)
-      row.qtext = Text(row, 9, K.water)
-      row.qtext:SetPoint("RIGHT", pill, "LEFT", qGo and -32 or -6, 0)
-      row.qtext:SetJustifyH("RIGHT")
       if qGo then
         local go = CreateFrame("Button", nil, row)
         go:SetSize(20, 20)
-        go:SetPoint("RIGHT", pill, "LEFT", -6, 0)
+        go:SetPoint("TOPRIGHT", -(12 + pw + 6), -4)
         local gi = Icon(go, "Interface\\Icons\\INV_Misc_Map_01", 20)
         gi:SetAllPoints()
         go:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
@@ -503,7 +513,7 @@ local function NewPage(tab, parent)
       if wp then
         local go = CreateFrame("Button", nil, row)
         go:SetSize(20, 20)
-        go:SetPoint("RIGHT", pill, "LEFT", -6, 0)
+        go:SetPoint("TOPRIGHT", -(12 + pw + 6), -4)
         local gi = Icon(go, "Interface\\Icons\\INV_Misc_Map_01", 20)
         gi:SetAllPoints()
         go:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
@@ -889,19 +899,23 @@ local function BuildFishLive(P)
   P.y = P.y - 88
   local C = P:Card("Botín de esta sesión", "Interface\\Icons\\INV_Misc_Fish_06", K.water)
   L.catch = {}
+  -- 3 columnas x 2 filas; el aviso de "vacío" va arriba, en el lugar de la primera fila
+  local colW = math.floor((CW - 28) / 3)
+  L.empty = Text(C.frame, 11, K.dim)
+  L.empty:SetPoint("TOPLEFT", 14, C.y - 6)
+  L.empty:SetText("Todavía no pescaste en esta sesión.")
   for i = 1, 6 do
-    local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
-    local x = 14 + col * math.floor((CW - 28) / 2)
+    local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
     local r = {}
-    r.icon = Framed(C.frame, "Interface\\Icons\\INV_Misc_QuestionMark", 26)
-    r.icon:SetPoint("TOPLEFT", x, C.y - row * 32)
-    r.text = Text(C.frame, 11.5, K.parch)
-    r.text:SetPoint("LEFT", r.icon, "RIGHT", 8, 0)
-    r.text:SetWidth(math.floor((CW - 28) / 2) - 40)
+    r.icon = Framed(C.frame, "Interface\\Icons\\INV_Misc_QuestionMark", 24)
+    r.icon:SetPoint("TOPLEFT", 14 + col * colW, C.y - row * 32)
+    r.text = Text(C.frame, 11, K.parch)
+    r.text:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+    r.text:SetWidth(colW - 36)
+    if r.text.SetMaxLines then r.text:SetMaxLines(2) end
     L.catch[i] = r
   end
-  C.y = C.y - 3 * 32
-  L.empty = C:Text("Todavía no pescaste en esta sesión.", 11, K.dim)
+  C.y = C.y - 2 * 32
   C:Finish()
 end
 
@@ -941,13 +955,6 @@ end
 
 local function BuildCampLive(P)
   local L = P.live
-  local C = P:Card("Ahorro para la montura del 40", "Interface\\Icons\\Ability_Mount_MountainRam", K.gold)
-  L.money = C:Text("", 13, K.parch)
-  L.mount = Bar(C.frame, CW - 28, 18, K.gold)
-  L.mount:SetPoint("TOPLEFT", 14, C.y)
-  C.y = C.y - 26
-  L.session = C:Text("", 11, K.mute)
-  C:Finish()
   local T = P:Card("Tienda de campaña", "Interface\\Icons\\INV_Misc_Bag_09", K.nature)
   L.tent = T:Text("", 12, K.parch)
   L.tentBar = Bar(T.frame, CW - 28, 10, K.nature)
@@ -959,15 +966,6 @@ local function BuildCampLive(P)
 end
 
 local function RefreshCamp(L)
-  local money = GetMoney()
-  local pct = math.min(1, money / NS.MOUNT_GOAL)
-  L.money:SetText(NS.Money(money) .. "  |cff8899aade|r  " .. NS.Money(NS.MOUNT_GOAL))
-  L.mount:SetValue(pct)
-  L.mount.text:SetText(math.floor(pct * 100) .. "%")
-  if NS.sessionMoney then
-    local d = money - NS.sessionMoney
-    L.session:SetText("En esta sesión: " .. (d >= 0 and "|cff7fd16a+|r" or "|cffff6060-|r") .. NS.Money(math.abs(d)))
-  end
   if DB().tentAt then
     local left = 3600 - (time() - DB().tentAt)
     if left > 0 then
@@ -1014,7 +1012,7 @@ local function BuildRotation(P, color)
     end
   end
   C.y = C.y - 70
-  C:Text("Antes de tirar: escudo e imbuición. Después Choque de llamas, golpes y Golpe de tormenta cuando esté listo. Choque de tierra para cortar hechizos.", 10.5, K.mute)
+  C:Text("Antes de tirar: escudo, imbuición y el Tótem abrasador antes de que llegue el enemigo. Después Choque de llamas, golpes y, desde el 25, Golpe de tormenta cuando esté listo. Choque de tierra para cortar hechizos y Nova de fuego con 3 o más enemigos.", 10.5, K.mute)
   C:Finish()
 end
 
@@ -1102,7 +1100,13 @@ local function BuildKeys(P)
       cell.bind = b
       if b then
         local cat = catBy[b.cat] or catBy.otro
-        cell.icon:SetTexture(b.icon); cell.icon:Show()
+        -- si el ícono no está cargado, se lo pide al juego por el nombre del hechizo (si ya lo aprendiste)
+        local tex = b.icon
+        if (not tex or tex:find("QuestionMark")) and b.spell and GetSpellTexture then
+          local ok, t = pcall(GetSpellTexture, b.spell)
+          if ok and t then tex = t end
+        end
+        cell.icon:SetTexture(tex); cell.icon:Show()
         cell.bar:SetColorTexture(C3(cat.c)); cell.bar:Show()
         cell.edge:SetColorTexture(cat.c[1], cat.c[2], cat.c[3], 0.9)
         cell.label:SetTextColor(C3(K.title))
@@ -1151,7 +1155,7 @@ local function BuildKeys(P)
     cell.label:SetShadowColor(0, 0, 0, 1)
     cell.label:SetText(label)
     cell:SetScript("OnEnter", function(self)
-      local b = self.bind
+      local b = rawget(self, "bind")
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       local mod = current ~= "" and (current .. "+") or ""
       if b then
@@ -1526,11 +1530,37 @@ local function BuildLayouts(P)
           b.name = bx.name
           b.label:SetText(bx.name)
           b.label:SetWidth(math.max(1, w - 4))
-          b.label:SetShown(w > 34 and h > 10)
+          b.g = { x = bx.r.l * sx, y = bx.r.t * sy, w = w, h = h }
           b:Show()
         end
       end
       for i = n + 1, #pool do pool[i]:Hide() end
+      -- etiquetas sin encimarse: primero las de los recuadros chicos (que están arriba); cada una prueba
+      -- arriba y abajo de su recuadro, y si las dos chocan con otra etiqueta se oculta (el nombre sigue en el tooltip)
+      local placed = {}
+      local function Hits(x, y, w, h)
+        for _, p in ipairs(placed) do
+          if x < p.x + p.w and p.x < x + w and y < p.y + p.h and p.y < y + h then return true end
+        end
+      end
+      for i = n, 1, -1 do
+        local b, g = pool[i], pool[i].g
+        b.label:Hide()
+        if g.w > 34 and g.h > 10 then
+          local lw = math.min(g.w - 4, math.ceil(b.label:GetStringWidth() or 0) + 1)
+          local spots = { 1 }
+          if g.h > 22 then spots[2] = g.h - 11 end
+          for _, off in ipairs(spots) do
+            if not Hits(g.x + 2, g.y + off, lw, 10) then
+              b.label:ClearAllPoints()
+              b.label:SetPoint("TOPLEFT", 2, -off)
+              b.label:Show()
+              placed[#placed + 1] = { x = g.x + 2, y = g.y + off, w = lw, h = 10 }
+              break
+            end
+          end
+        end
+      end
       local bits = { lay.author }
       if lay.date and lay.date ~= "" then bits[#bits + 1] = lay.date end
       bits[#bits + 1] = lay.version
@@ -1564,16 +1594,6 @@ local function BuildLayouts(P)
     R:Finish()
   end
 
-  -- de dónde salen
-  local D = P:Card("De dónde salen", "Interface\\Icons\\INV_Misc_Book_09", K.accent)
-  for _, lay in ipairs(list) do
-    D:Text("|cfff2f4f8" .. (lay.name or "") .. "|r  ·  " .. (lay.author or "") .. "  ·  " .. (lay.site or ""), 10.5, K.parch)
-  end
-  for _, c in ipairs(NS.CDM or {}) do
-    D:Text("|cfff2f4f8Reutilización: " .. (c.name or "") .. "|r  ·  " .. (c.author or "") .. "  ·  " .. (c.site or ""), 10.5, K.parch)
-  end
-  D:Text("Los textos son de sus autores; el Códice solo los muestra con su nombre y de dónde salieron.", 10, K.dim)
-  D:Finish()
 end
 
 local function BuildNotes(tab, parent)

@@ -20,10 +20,6 @@ NS.AUTO.extra = {
   t25 = { { "talent", { { "Golpe de tormenta", 1 } } }, { "spell", { "Golpe de tormenta" } } },
   t26 = { { "talent", { { "Lobo fantasmal mejorado", 2 } } } },
   t28 = { { "talent", { { "Ráfaga", 2 } } } },
-  -- Personaje: espacios vacíos
-  eq1 = { { "item", nil, { "capucha del camorrista", "brawler's cap" } } },
-  eq2 = { { "slot", { 2 } } },
-  eq3 = { { "slot", { 12, 13, 14 } } },
 
   -- Misiones
   dm8 = { { "item", { 7230 }, { "martillo poderoso de smite", "smite's mighty hammer" } } },
@@ -67,12 +63,9 @@ NS.AUTO.extra = {
   f4e = { { "item", { 16967 }, { "feralas ahi", "ahi de feralas" } }, { "skill", "Pesca", 226, "max" } },
   f5a = { { "skill", "Pesca", 300 } },
 
-  -- Campamento
-  mt1 = { { "skill", "Equitación", 75 }, { "level", 40 } },
-  mt2 = { { "skill", "Equitación", 150 } },
 }
 -- Estas pasan a decidirse por la equitación aprendida, no solo por el nivel
-NS.AUTO.level.r30g, NS.AUTO.level.mt1, NS.AUTO.level.r50e, NS.AUTO.level.mt2 = nil, nil, nil, nil
+NS.AUTO.level.r30g, NS.AUTO.level.r50e = nil, nil
 NS.SKILL_ALIASES["Equitación"] = { "Equitación", "Riding" }
 
 ----------------------------------------------------------------------

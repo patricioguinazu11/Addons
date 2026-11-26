@@ -9,7 +9,9 @@ Al subir de nivel aparece un cartel con lo que subió (vida, maná, estadística
 
 Si tenés [Questie](https://github.com/Questie/Questie) instalado, el Códice usa su base de datos para las flechas: las misiones de la guía tienen botón "Ir" (a quien la da, al objetivo que falta o a quien la entrega) y la pestaña Misiones lleva a la entrega o al objetivo más cercano. Sin Questie, todo funciona igual.
 
-Versión actual: **4.3.0**.
+Para Mejora hay temporizadores de tótems: cuatro casillas (tierra, fuego, agua y aire) con el tiempo que le queda a cada uno. Aparecen solas al poner un tótem y se mueven arrastrándolas; `/piolin totems` muestra una de ejemplo. Y en el tooltip de los materiales de Peletería dice en qué tramo los usás y cuántos tenés.
+
+Versión actual: **4.4.0**.
 
 ## Contenido
 

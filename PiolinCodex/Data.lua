@@ -26,11 +26,6 @@ NS.TABS = {
         { id = "t28", t = "28-29: Ráfaga 2/5" },
         { t = "Nunca tomes Escudo de agua temprano: retrasa Golpe de tormenta." },
       }},
-      { h = "Espacios vacíos", icon = "Interface\\Icons\\INV_Helmet_04", items = {
-        { id = "eq1", t = "Cabeza: capucha del Camorrista (Peletería 100, Daniel Hilvanante)" },
-        { id = "eq2", t = "Cuello: Gargantilla efímera (Sala de los Thanes) o un collar \"del oso/tigre\" de la subasta" },
-        { id = "eq3", t = "Segundo anillo y abalorios: subasta o recompensas de misión" },
-      }},
     },
   },
   {
@@ -160,14 +155,6 @@ NS.TABS = {
     lead = "Fuerza primero y arma lenta a dos manos. Solo, el único tótem que vale el maná es el Abrasador.",
     macros = true,
     sections = {
-      { h = "Rotación 20-24", icon = "Interface\\Icons\\Spell_Fire_SearingTotem", items = {
-        { t = "1. Escudo de relámpagos antes de pelear" },
-        { t = "2. Choque de llamas para abrir" },
-        { t = "3. Tótem abrasador antes de que llegue el enemigo" },
-        { t = "4. Nova de fuego con 3 o más enemigos" },
-        { t = "5. Choque de tierra cuando esté listo, o para interrumpir" },
-        { t = "Desde el 25: Golpe de tormenta siempre que esté listo; Descarga de relámpagos con 5 cargas de Arma vórtice." },
-      }},
     },
   },
   {
@@ -175,10 +162,6 @@ NS.TABS = {
     lead = "Hoguera básica + tienda de campaña cada hora; juntá oro para la Equitación del 40.",
     live = "camp",
     sections = {
-      { h = "Monturas", icon = "Interface\\Icons\\Ability_Mount_MountainRam", items = {
-        { id = "mt1", t = "Nivel 40: Equitación por 100 de oro y el oso del pack" },
-        { id = "mt2", t = "Nivel 60: Equitación de oficial por 1000 de oro y tu Garrazul cerúleo" },
-      }},
     },
   },
   {

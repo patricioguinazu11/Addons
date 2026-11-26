@@ -406,7 +406,7 @@ end)
 local prevSlash = NS.TradeSlash
 NS.TradeSlash = function(msg)
   if msg == "ayuda" then
-    Print("comandos: /piolin (abrir), opciones, instructor [oficio], rastreo, misiones, ir X Y, macros, tienda, probar, nivel [N], avisos, equipo, reparar, ayudante, vender, compras, precios, minimapa, reset, basura [objeto], objetivo [objeto].")
+    Print("comandos: /piolin (abrir), opciones, instructor [oficio], rastreo, misiones, ir X Y, macros, tienda, probar, nivel [N], totems, avisos, equipo, reparar, ayudante, vender, compras, precios, minimapa, reset, basura [objeto], objetivo [objeto].")
     return true
   elseif msg == "equipo" then
     DB().noGear = not DB().noGear

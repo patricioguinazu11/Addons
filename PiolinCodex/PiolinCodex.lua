@@ -875,6 +875,7 @@ SlashCmdList["PIOLINCODEX"] = function(msg)
   msg = (msg or ""):lower()
   if NS.TradeSlash and NS.TradeSlash(msg) then return end
   if NS.LevelSlash and NS.LevelSlash(msg) then return end
+  if NS.TotemSlash and NS.TotemSlash(msg) then return end
   if msg == "macros" then
     NS.CreateMacros()
   elseif msg == "tienda" then

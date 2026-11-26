@@ -24,7 +24,7 @@ NS.AUTO = {
     dm9 = 373,   -- La carta sin enviar
   },
   -- nivel alcanzado
-  level = { r20d = 25, r30b = 30, r30c = 32, r30g = 40, mt1 = 40, r50e = 60, mt2 = 60 },
+  level = { r20d = 25, r30b = 30, r30c = 32, r30g = 40, r50e = 60 },
   -- habilidad de profesión: { profesión, valor, "rank" o "max" }
   skill = {
     lw1 = { "Peletería", 90 }, lw2 = { "Peletería", 100 }, lw3 = { "Peletería", 115 },

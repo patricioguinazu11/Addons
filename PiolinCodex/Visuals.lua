@@ -207,9 +207,12 @@ NS.AddPageExtra("campamento", function(P, H)
     bars[i] = { bar = b, goal = g }
     M.y = M.y - 46
   end
+  local session = M:Text(" ", 11, K.mute)
   M:Finish()
   table.insert(P.refreshers, function()
     local money, level = GetMoney(), UnitLevel("player") or 1
+    local d = NS.sessionMoney and (money - NS.sessionMoney)
+    session:SetText("Tenés " .. NS.Money(money) .. (d and ("  ·  en esta sesión: " .. (d >= 0 and "|cff7fd16a+|r" or "|cffff6060-|r") .. NS.Money(math.abs(d))) or ""))
     for _, e in ipairs(bars) do
       local pct = math.min(1, money / e.goal[2])
       e.bar:SetValue(pct)

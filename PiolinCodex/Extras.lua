@@ -236,11 +236,10 @@ end
 local function PaintRows()
   for id, questID in pairs(NS.AUTO.quest) do
     local row = NS.cbById[id]
-    if row and row.qtext then
-      local st = NS.QuestStatus(questID)
-      if st == "ready" and not DB().checks[id] then row.qtext:SetText("|cff7fd16a¡entregar!|r")
-      elseif st == "active" and not DB().checks[id] then row.qtext:SetText("|cff69ccf0en tu registro|r")
-      else row.qtext:SetText("") end
+    local set = row and rawget(row, "SetQuestState")
+    if set then
+      local st = not DB().checks[id] and NS.QuestStatus(questID) or nil
+      set(row, st)
     end
   end
 end
@@ -261,7 +260,7 @@ NS.PageExtras.misiones = function(P, H)
   L.gray = card:Text(" \n ", 11.5, K.dim)
   L.guide = card:Text(" ", 11.5, K.water)
   for _, fs in ipairs({ L.ready, L.gray, L.guide }) do if fs.SetMaxLines then fs:SetMaxLines(fs == L.guide and 1 or 2) end end
-  card:Text("Las misiones de la guía muestran “en tu registro” o “¡entregar!” al costado.", 10, K.dim)
+  card:Text("Las misiones de la guía muestran “en tu registro” o “¡entregar!” en lugar de su etiqueta.", 10, K.dim)
   card:Finish()
   table.insert(P.refreshers, function()
     local q = NS.questLog or ScanLog(false)
@@ -278,14 +277,16 @@ end
 -- 4. Panel de opciones nativo
 ----------------------------------------------------------------------
 local OPTIONS = {
-  { key = "noAnim", inv = true, t = "Animaciones del Códice", d = "Elementos al abrir, tildes, logros, nivel, tótems y viento." },
+  { key = "noAnim", inv = true, t = "Animaciones del Códice", d = "Elementos al abrir, tildes, logros, nivel y viento." },
   { key = "noLevelCard", inv = true, t = "Cartel al subir de nivel", d = "Qué subió, punto de talento y qué entrenar en el instructor." },
+  { key = "noTotems", inv = true, t = "Temporizadores de tótems", d = "Tiempo que le queda a cada tótem. /piolin totems para moverla." },
   { key = "noReminders", inv = true, t = "Avisos de combate y de cebo", d = "Escudo de relámpagos, imbuición y cebo de la caña." },
   { key = "noQuestLog", inv = true, t = "Avisar misiones listas para entregar", d = "Cartel cuando completás los objetivos de una misión." },
   { key = "noSkinTips", inv = true, t = "Pistas de desuello en las bestias", d = "Qué nivel de Desuello pide y si te da puntos." },
   { key = "noAutoTrack", inv = true, t = "Rastrear instructores al entrar a una ciudad", d = "Forjaz, Ventormenta y Darnassus: aparecen en el minimapa." },
   { key = "noGear", inv = true, t = "Comparador de equipo en los tooltips", d = "Mejora o peor para un chamán Mejora." },
   { key = "noPrices", inv = true, t = "Precios en los tooltips", d = "Subasta, vendedor y qué conviene." },
+  { key = "noMatUse", inv = true, t = "Para qué sirve cada material", d = "En qué tramo de Peletería lo usás y cuánto tenés." },
   { key = "noAutoSell", inv = true, t = "Vender la basura sola en el vendedor", d = "Todo lo gris y lo marcado con /piolin basura." },
   { key = "noRepair", inv = true, t = "Reparar solo en el vendedor", d = "Si te alcanza el oro." },
   { key = "noShop", inv = true, t = "Lista de compras en vendedor y subasta", d = "Lo que falta para tu tramo de Peletería." },

@@ -59,17 +59,17 @@ ex=L.eval('''function(NS)
   __fire("QUEST_ACCEPTED", 3, 166); for _, t in ipairs(__timers) do t() end; __timers = {}
   NS.ShowTab(2); NS.RefreshLive()
   PiolinCodex_Toggle(); PiolinCodex_ClearWay()
-  return r1, GetBindingKey("PIOLINCODEX_TOGGLE"), NS.cbById.dm7.qtext:GetText(), NS.cbById.dm1.qtext:GetText()
+  return r1, GetBindingKey("PIOLINCODEX_TOGGLE"), tostring(rawget(NS.cbById.dm7,"questState")), tostring(rawget(NS.cbById.dm1,"questState"))
 end''')
 print('extras:', ex(NS))
-chk=L.eval('''function(NS) return tostring(PiolinCodexDB.checks.dm7), NS.QuestStatus(166), tostring(PiolinCodexDB.checks.dm4), NS.cbById.dm4 and NS.cbById.dm4.qtext:GetText() end''')
+chk=L.eval('''function(NS) return tostring(PiolinCodexDB.checks.dm7), NS.QuestStatus(166), tostring(PiolinCodexDB.checks.dm4), NS.cbById.dm4 and tostring(rawget(NS.cbById.dm4,"questState")) end''')
 print('dm7 tildada:', chk(NS))
 dbg=L.eval('''function(NS)
   local p = NS.pages.misiones
   local r = rawget(p, "refreshers")
   local out = {"refreshers=" .. tostring(r and #r)}
   if r then r[1]() end
-  table.insert(out, "dm7=" .. NS.cbById.dm7.qtext:GetText())
+  table.insert(out, "dm7=" .. tostring(rawget(NS.cbById.dm7,"questState")))
   table.insert(out, "ql=" .. tostring(NS.questLog and NS.questLog.total))
   return table.concat(out, " ")
 end''')
@@ -172,7 +172,7 @@ au=L.eval('''function(NS)
   for _, t in ipairs(__timers) do pcall(t) end; __timers = {}
   NS.AutoCheck(false)
   local got = {}
-  for _, id in ipairs({"t21","t24","t25","eq2","eq3","tr1","ah1","ah3","f2b","f2c","f4b","f5a","r20a","lp4","lw1"}) do
+  for _, id in ipairs({"t21","t24","t25","tr1","ah1","ah3","f2b","f2c","f4b","f5a","r20a","lp4","lw1"}) do
     table.insert(got, id .. "=" .. (PiolinCodexDB.checks[id] and "si" or "no"))
   end
   return table.concat(got, " ")

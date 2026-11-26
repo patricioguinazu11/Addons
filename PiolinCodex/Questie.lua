@@ -234,8 +234,10 @@ NS.PageExtras = NS.PageExtras or {}
 local baseMisiones = NS.PageExtras.misiones
 NS.PageExtras.misiones = function(P, H)
   if baseMisiones then baseMisiones(P, H) end
+  -- sin Questie la tarjeta solo tendría botones que no hacen nada
+  if not NS.HasQuestie() then return end
   local K, CW = H.K, H.CW
-  local card = P:Card("Con Questie", "Interface\\GossipFrame\\ActiveQuestIcon", K.water)
+  local card = P:Card("Con Questie", "Interface\\Icons\\INV_Misc_Map02", K.water)
   local status = card:Text(" ", 11.5, K.parch)
   local function Btn(label, x)
     local b = CreateFrame("Button", nil, card.frame, "UIPanelButtonTemplate")
