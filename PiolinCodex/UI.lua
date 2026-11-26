@@ -138,9 +138,9 @@ local function Pill(parent, label, color)
   return p
 end
 
-local function Tooltip(frame, title, lines)
+local function Tooltip(frame, title, lines, anchor)
   frame:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetOwner(self, anchor or "ANCHOR_RIGHT")
     GameTooltip:AddLine(title, C3(K.gold))
     for _, l in ipairs(lines or {}) do GameTooltip:AddLine(l, 1, 1, 1, true) end
     GameTooltip:Show()
@@ -478,11 +478,13 @@ local function NewPage(tab, parent)
       local fs = Text(row, 11.5, K.parch)
       fs:SetPoint("TOPLEFT", 36, -6)
       local isQuest = id and NS.AUTO and NS.AUTO.quest and NS.AUTO.quest[id]
-      fs:SetWidth(CW - 2 - 36 - 74 - (wp and 26 or 0) - (isQuest and 78 or 0))
-      fs:SetSpacing(2)
-      fs:SetText(text)
       local pill = Pill(row, tag[1], tag[2])
       pill:SetPoint("TOPRIGHT", -12, -6)
+      -- el texto deja lugar para la etiqueta real (MAZMORRA es más ancha que MISIÓN)
+      local pillRoom = math.max(74, math.ceil(pill:GetWidth() or 0) + 12 + 10)
+      fs:SetWidth(CW - 2 - 36 - pillRoom - (wp and 26 or 0) - (isQuest and 78 or 0))
+      fs:SetSpacing(2)
+      fs:SetText(text)
       row.qtext = Text(row, 9, K.water)
       row.qtext:SetPoint("RIGHT", pill, "LEFT", -6, 0)
       row.qtext:SetJustifyH("RIGHT")
@@ -1775,7 +1777,8 @@ local function BuildFrame()
     b.count:SetPoint("RIGHT", -10, 0)
     b.count:SetJustifyH("RIGHT")
     b:SetScript("OnClick", function() NS.Sound("tab"); NS.ShowTab(i) end)
-    Tooltip(b, tab.key == "ruta" and "Ruta 20-60" or tab.label, { tab.lead })
+    -- a la izquierda, fuera de la ventana: a la derecha tapaba el título de la pestaña
+    Tooltip(b, tab.key == "ruta" and "Ruta 20-60" or tab.label, { tab.lead }, "ANCHOR_LEFT")
     nav[i] = b
   end
   local hint = Text(side, 10, K.dim)

@@ -128,6 +128,9 @@ print('moderno:', rt(NS))
 ah=L.eval('''function(NS)
   local out = {}
   table.insert(out, "talentos libres=" .. tostring(NS.FreeTalentPoints()))
+  local rk = NS.TalentRanks() or {}
+  local n = 0 for _ in pairs(rk) do n = n + 1 end
+  table.insert(out, "rangos=" .. n .. " golpes de trueno " .. tostring(rk["golpes de trueno"]))
   table.insert(out, "oficio=" .. tostring((NS.Skill("Peletería"))))
   table.insert(out, "verde=" .. GetQuestGreenRange())
   __fire("AUCTION_HOUSE_SHOW")

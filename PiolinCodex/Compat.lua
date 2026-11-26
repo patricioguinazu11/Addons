@@ -98,13 +98,95 @@ if missing("GetQuestGreenRange") or NS.IsForever then
   end
 end
 
--- Talentos sin gastar. Forever tiene árboles como Classic: si no existe UnitCharacterPoints,
--- se cuentan los puntos gastados en los árboles. Si no hay forma de saberlo, devuelve nil.
+-- Talentos del motor moderno (C_ClassTalents / C_Traits). Forever no tiene UnitCharacterPoints
+-- ni GetNumTalentTabs: los árboles viven en una configuración de "traits".
+local function TraitsConfig()
+  if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetConfigInfo) then return nil end
+  local configID = C_ClassTalents.GetActiveConfigID()
+  if not configID then return nil end
+  local info = C_Traits.GetConfigInfo(configID)
+  if not (info and type(info.treeIDs) == "table" and info.treeIDs[1]) then return nil end
+  return configID, info.treeIDs
+end
+
+-- Puntos sin gastar según las monedas del árbol (cada moneda se cuenta una sola vez)
+local function TraitsFreePoints()
+  local ok, v = pcall(function()
+    if not (C_Traits and C_Traits.GetTreeCurrencyInfo) then return nil end
+    local configID, trees = TraitsConfig()
+    if not configID then return nil end
+    local n, seen = 0, {}
+    for _, treeID in ipairs(trees) do
+      for _, c in ipairs(C_Traits.GetTreeCurrencyInfo(configID, treeID, false) or {}) do
+        local id = c.traitCurrencyID or #seen + 1
+        if type(c.quantity) == "number" and not seen[id] then seen[id] = true; n = n + c.quantity end
+      end
+    end
+    if next(seen) == nil then return nil end
+    return n
+  end)
+  if ok then return v end
+end
+
+local function SpellName(id)
+  if not id then return nil end
+  if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(id) end
+  if GetSpellInfo then return (GetSpellInfo(id)) end
+end
+
+-- Rango de cada talento por nombre (en minúscula). nil si el cliente no lo informa.
+function NS.TalentRanks()
+  local map = {}
+  if GetNumTalentTabs and GetNumTalents and GetTalentInfo then
+    pcall(function()
+      for tab = 1, GetNumTalentTabs() do
+        for i = 1, GetNumTalents(tab) do
+          local name, _, _, _, rank = GetTalentInfo(tab, i)
+          if type(name) == "string" and type(rank) == "number" then map[name:lower()] = rank end
+        end
+      end
+    end)
+    if next(map) then return map end
+  end
+  pcall(function()
+    if not (C_Traits and C_Traits.GetTreeNodes and C_Traits.GetNodeInfo and C_Traits.GetEntryInfo and C_Traits.GetDefinitionInfo) then return end
+    local configID, trees = TraitsConfig()
+    if not configID then return end
+    for _, treeID in ipairs(trees) do
+      for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
+        local node = C_Traits.GetNodeInfo(configID, nodeID)
+        if node then
+          local rank = node.activeRank or node.currentRank or 0
+          local entryID = (node.activeEntry and node.activeEntry.entryID) or (node.entryIDs and node.entryIDs[1])
+          local entry = entryID and C_Traits.GetEntryInfo(configID, entryID)
+          local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
+          local name = def and (def.overrideName or SpellName(def.spellID))
+          if type(name) == "string" and name ~= "" and type(rank) == "number" then
+            local k = name:lower()
+            map[k] = math.max(map[k] or 0, rank)
+          end
+        end
+      end
+    end
+  end)
+  if next(map) then return map end
+  return nil
+end
+
+-- Talentos sin gastar. Prueba, en orden: UnitCharacterPoints (Classic), GetUnspentTalentPoints,
+-- las monedas de C_Traits (motor moderno) y, por último, contar lo gastado en los árboles.
+-- Si no hay forma de saberlo, devuelve nil.
 function NS.FreeTalentPoints()
   if UnitCharacterPoints then
     local ok, v = pcall(UnitCharacterPoints, "player")
     if ok and type(v) == "number" then return v end
   end
+  if GetUnspentTalentPoints then
+    local ok, v = pcall(GetUnspentTalentPoints)
+    if ok and type(v) == "number" then return v end
+  end
+  local traits = TraitsFreePoints()
+  if traits then return traits end
   local level = UnitLevel("player") or 1
   local total = math.max(0, level - 9)
   if GetNumTalentTabs and GetNumTalents and GetTalentInfo then

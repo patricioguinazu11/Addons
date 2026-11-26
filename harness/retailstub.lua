@@ -45,8 +45,20 @@ local SK2 = { { name = "Profesiones", isHeader = true, isCollapsed = true }, { n
 C_SkillInfo = { GetNumSkillLines = function() return #SK2 end, GetSkillLineInfo = function(i) return SK2[i] end, ExpandSkillHeader = function(i) SK2[i].isCollapsed = false end }
 C_Secrets = { ShouldAurasBeSecret = function() return __inCombat == true end }
 C_QuestLog.GetTrivialRange = function() return 9 end
-GetNumTalentTabs = function() return 3 end; GetNumTalents = function() return 2 end
-GetTalentInfo = function(t, i) return "x", 1, 1, 1, (t == 2 and i == 1) and 5 or 0, 5 end
+-- talentos del motor moderno: sin GetNumTalentTabs, con C_ClassTalents / C_Traits
+GetNumTalentTabs = nil; GetNumTalents = nil; GetTalentInfo = nil
+local TN = { [101] = { def = 1, rank = 5 }, [102] = { def = 2, rank = 0 } }
+C_ClassTalents = { GetActiveConfigID = function() return 7 end }
+C_Traits = {
+  GetConfigInfo = function(id) return { treeIDs = { 70, 71 } } end,
+  -- los dos árboles informan la misma moneda: se tiene que contar una sola vez
+  GetTreeCurrencyInfo = function() return { { traitCurrencyID = 9, quantity = 6, spent = 5 } } end,
+  GetTreeNodes = function(tree) return tree == 70 and { 101, 102 } or {} end,
+  GetNodeInfo = function(cfg, node) local n = TN[node]; return { activeRank = n.rank, entryIDs = { node * 10 } } end,
+  GetEntryInfo = function(cfg, entry) return { definitionID = entry / 10 } end,
+  GetDefinitionInfo = function(def) return { spellID = def } end,
+}
+C_Spell.GetSpellName = function(id) return ({ [101] = "Golpes de trueno", [102] = "Anticipación" })[id] end
 UnitExists = function() return true end; UnitCanAttack = function() return true end; UnitIsDead = function() return false end
 local results = {}
 C_AuctionHouse = { MakeItemKey = function(id) return { itemID = id } end, IsThrottledMessageSystemReady = function() return true end,

@@ -80,19 +80,9 @@ NS.SKILL_ALIASES["Equitación"] = { "Equitación", "Riding" }
 ----------------------------------------------------------------------
 local function lower(s) return (s or ""):lower() end
 
+-- Rangos de talentos: Compat.lua sabe leerlos tanto en Classic como en el motor moderno
 local function TalentRanks()
-  local map = {}
-  if not (GetNumTalentTabs and GetNumTalents and GetTalentInfo) then return nil end
-  local ok = pcall(function()
-    for tab = 1, GetNumTalentTabs() do
-      for i = 1, GetNumTalents(tab) do
-        local name, _, _, _, rank = GetTalentInfo(tab, i)
-        if type(name) == "string" and type(rank) == "number" then map[lower(name)] = rank end
-      end
-    end
-  end)
-  if not ok or next(map) == nil then return nil end
-  return map
+  return NS.TalentRanks and NS.TalentRanks() or nil
 end
 
 -- ¿Sabés este hechizo o receta? Se confirma con el libro de hechizos cuando el cliente lo permite
