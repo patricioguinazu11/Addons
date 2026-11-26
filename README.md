@@ -7,7 +7,7 @@ La pestaña **Pantalla** muestra diseños del Modo edición que compartieron jug
 
 Al subir de nivel aparece un cartel con lo que subió (vida, maná, estadísticas y talento) y lo nuevo en el instructor, con la sugerencia de qué comprar para Mejora. La lista de hechizos por nivel de Forever sale de Conquest Capped. Se prueba con `/piolin nivel 20`.
 
-Versión actual: **4.2.0**.
+Versión actual: **4.2.1**.
 
 ## Contenido
 

@@ -47,8 +47,9 @@ NS.SKILL_ALIASES = {
 
 -- Cartel al subir de nivel
 NS.LEVEL_TIPS = {
+  [18] = "Entrená en Forjaz: rangos de Choque de llamas y Lengua de fuego.",
   [21] = "Punto en Armas elementales (1/3).",
-  [22] = "Armas elementales 2/3. Entrená en Forjaz: rangos de Choque de llamas y Lengua de fuego.",
+  [22] = "Armas elementales 2/3. En el instructor: Nova de fuego rango 2 y Totemic Call, que acerca tus tótems.",
   [23] = "Armas elementales 3/3.",
   [24] = "Anticipación 1/3. Mañana: Golpe de tormenta.",
   [25] = "¡GOLPE DE TORMENTA! Primer punto de legado. Agregá la macro PC Tormenta a tu barra.",
