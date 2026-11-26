@@ -686,12 +686,65 @@ local function BuildMinimapButton()
   border:SetSize(53, 53)
   border:SetPoint("TOPLEFT")
   border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-  local function place()
-    local a = math.rad(DB().minimapAngle or 220)
-    mb:ClearAllPoints()
-    mb:SetPoint("CENTER", Minimap, "CENTER", 80 * math.cos(a), 80 * math.sin(a))
+  -- Siempre en el borde: la distancia sale del tamaño real del minimapa (en Forever es más grande que en Classic)
+  local function Radius() return ((Minimap:GetWidth() or 140) / 2) + 5 end
+  -- Ángulos que ya ocupan otros botones del borde (Questie y los demás addons), y el de Questie aparte
+  local function TakenAngles()
+    local taken, questie = {}, nil
+    pcall(function()
+      local mx, my = Minimap:GetCenter()
+      if not mx then return end
+      local ms, R = Minimap:GetEffectiveScale(), Radius()
+      for _, ch in ipairs({ Minimap:GetChildren() }) do
+        if type(ch) == "table" and ch ~= mb and ch.IsShown and ch:IsShown() then
+          local cx, cy = ch:GetCenter()
+          local k = (ch:GetEffectiveScale() or ms) / ms
+          local w = (ch:GetWidth() or 0) * k
+          if cx and w >= 16 and w <= 64 then
+            local dx, dy = cx * k - mx, cy * k - my
+            local d = math.sqrt(dx * dx + dy * dy)
+            if d > R * 0.7 and d < R * 1.4 then
+              local ang = math.deg(math.atan2(dy, dx))
+              taken[#taken + 1] = ang
+              if (ch:GetName() or ""):find("Questie") then questie = ang end
+            end
+          end
+        end
+      end
+    end)
+    return taken, questie
   end
-  mb:RegisterForClicks("LeftButtonUp")
+  -- Lugar libre en el borde: pegado a Questie si está, y si no cerca de abajo a la izquierda
+  local function AutoAngle()
+    local taken, questie = TakenAngles()
+    local base = questie or 220
+    local step = math.deg(2 * math.asin(math.min(1, 18 / Radius()))) + 4
+    local function free(a)
+      for _, t in ipairs(taken) do
+        if math.abs((a - t + 180) % 360 - 180) < step then return false end
+      end
+      return true
+    end
+    if free(base) then return base end
+    for k = 1, 16 do
+      for _, s in ipairs({ -1, 1 }) do
+        local a = base + s * k * step
+        if free(a) then return a end
+      end
+    end
+    return base
+  end
+  local function place()
+    local deg = (DB().minimapManual and DB().minimapAngle) or NS.minimapAutoAngle or 220
+    local a, R = math.rad(deg), Radius()
+    mb:ClearAllPoints()
+    mb:SetPoint("CENTER", Minimap, "CENTER", R * math.cos(a), R * math.sin(a))
+  end
+  local function autoPlace()
+    if not DB().minimapManual then NS.minimapAutoAngle = AutoAngle() end
+    place()
+  end
+  mb:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   mb:RegisterForDrag("LeftButton")
   mb:SetScript("OnDragStart", function(self)
     self:SetScript("OnUpdate", function()
@@ -699,11 +752,27 @@ local function BuildMinimapButton()
       local px, py = GetCursorPosition()
       local s = Minimap:GetEffectiveScale()
       DB().minimapAngle = math.deg(math.atan2(py / s - my, px / s - mx))
+      DB().minimapManual = true
       place()
     end)
   end)
   mb:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
-  mb:SetScript("OnClick", NS.Toggle)
+  mb:SetScript("OnClick", function(self, button)
+    if button == "RightButton" then
+      DB().minimapManual = nil
+      autoPlace()
+      Print("el botón del minimapa vuelve a ubicarse solo en el borde.")
+      return
+    end
+    NS.Toggle()
+  end)
+  -- Questie y otros addons crean sus botones después: se vuelve a buscar lugar en unos segundos,
+  -- y si cambia el tamaño del minimapa se recalcula la distancia al borde
+  if C_Timer and C_Timer.After then
+    C_Timer.After(1, autoPlace)
+    C_Timer.After(5, autoPlace)
+  end
+  if Minimap.HookScript then pcall(Minimap.HookScript, Minimap, "OnSizeChanged", function() place() end) end
   -- al pasar el mouse el ícono crece un poco y se aclara; al salir vuelve
   local size = 20
   local function hover(on)
@@ -723,10 +792,11 @@ local function BuildMinimapButton()
     GameTooltip:AddLine("Códice de Piolin", 0.85, 0.66, 0.25)
     GameTooltip:AddLine("Clic: abrir o cerrar", 1, 1, 1)
     GameTooltip:AddLine("Arrastrar: mover el botón", 1, 1, 1)
+    GameTooltip:AddLine("Clic derecho: que se ubique solo en el borde", 1, 1, 1)
     GameTooltip:Show()
   end)
   mb:SetScript("OnLeave", function() hover(false); GameTooltip_Hide() end)
-  place()
+  autoPlace()
   mb:SetShown(not DB().hideMinimap)
   NS.minimapButton = mb
 end

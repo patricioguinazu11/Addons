@@ -5,7 +5,7 @@ Misiones, ruta 20-60, profesiones, macros, avisos antes de pelear, ayudante de s
 
 La pestaña **Pantalla** muestra diseños del Modo edición que compartieron jugadores de Forever (Zilbur Whillbur, Stereo, papi, Luxthos y uno sin nombre, de wowforeverui.com, wow4ever.quest y wago.io) y el Administrador de reutilización de chamán Mejora de Luxthos. Los textos son de sus autores; el addon los muestra con su nombre y no los aplica solo: se importan desde el juego.
 
-Versión actual: **4.1.0**.
+Versión actual: **4.1.1**.
 
 ## Contenido
 
