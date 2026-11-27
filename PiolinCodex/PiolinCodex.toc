@@ -1,12 +1,16 @@
 ## Interface: 16001, 11509, 11508
 ## Title: |cffd9a93fCódice de Piolin|r
-## Notes: Guía personal de Piolin (Enano Chamán Mejora): misiones, ruta 20-60, profesiones y macros. /piolin
+## Notes: Guía de Chamán Mejora para WoW Forever: qué te toca ahora, HUD de combate, oficios y precios. /piolin
+## Notes-enUS: Enhancement Shaman guide for WoW Forever: what to do next, combat HUD, professions and prices. /piolin
 ## Author: Patricio
-## Version: 4.5.0
+## Version: 5.0.0
 ## SavedVariables: PiolinCodexDB
+## SavedVariablesPerCharacter: PiolinCodexCharDB
 ## OptionalDeps: TomTom, Questie
 
 Compat.lua
+Locale.lua
+DB.lua
 Data.lua
 DataExtra.lua
 DataLayouts.lua
@@ -25,5 +29,5 @@ Trainers.lua
 Visuals.lua
 LevelUp.lua
 Questie.lua
-Totems.lua
+HUD.lua
 Fishing.lua

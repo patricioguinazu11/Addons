@@ -2,9 +2,9 @@
 -- Fondos lisos, bordes de 1 px y el azul chamán como único acento. Letra Inter incluida en el addon.
 local ADDON, NS = ...
 
-local W, H = 780, 570
-local NAV_W = 180
-local HEAD_H = 66                  -- alto de la cabecera
+local W, H = 740, 530
+local NAV_W = 150
+local HEAD_H = 56                  -- alto de la cabecera
 local CW = W - NAV_W - 66          -- ancho útil del contenido
 local FONT_DIR = "Interface\\AddOns\\" .. ADDON .. "\\Fonts\\"
 local TITLE_FONT = FONT_DIR .. "Inter-SemiBold.ttf"
@@ -12,14 +12,26 @@ local BODY_FONT = FONT_DIR .. "Inter-Regular.ttf"
 local BD = BackdropTemplateMixin and "BackdropTemplate" or nil
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 
--- Paleta: superficies oscuras neutras, texto gris claro, azul chamán de acento y los cuatro elementos
+----------------------------------------------------------------------
+-- Sistema de diseño
+-- Grises para todo; acento 1 (azul chamán) para acciones, selección y progreso; acento 2 (dorado)
+-- para "lo que importa ahora". Verde y rojo solo como estado (listo / falta). Los colores de los
+-- elementos (K.el) se usan únicamente en el HUD de tótems, donde informan algo.
+-- Letra: 5 tamaños (18 título, 13 sección, 12 texto, 10,5 chico, 9 etiquetas). Espaciado en múltiplos de 4.
+----------------------------------------------------------------------
+local G0, G1, G2, G3 = { 0.043, 0.051, 0.067 }, { 0.071, 0.082, 0.106 }, { 0.102, 0.118, 0.149 }, { 0.149, 0.169, 0.208 }
+local G4, G5, G6 = { 0.42, 0.447, 0.502 }, { 0.604, 0.631, 0.678 }, { 0.902, 0.91, 0.925 }
+local A1, A2 = { 0.18, 0.56, 1 }, { 0.949, 0.788, 0.298 }
+local OK, BAD = { 0.357, 0.745, 0.416 }, { 0.898, 0.325, 0.294 }
 local K = {
-  bg = { 0.055, 0.067, 0.09 }, side = { 0.043, 0.051, 0.07 }, card = { 0.075, 0.094, 0.13 }, raised = { 0.09, 0.12, 0.17 },
-  line = { 0.12, 0.15, 0.2 }, edge = { 0.15, 0.17, 0.22 }, track = { 0.11, 0.13, 0.17 },
-  title = { 0.95, 0.96, 0.97 }, accent = { 0.18, 0.56, 1 },
-  gold = { 1, 0.82, 0 }, parch = { 0.86, 0.89, 0.93 }, mute = { 0.53, 0.57, 0.64 }, dim = { 0.42, 0.46, 0.53 },
-  blue = { 0.18, 0.56, 1 }, water = { 0.3, 0.66, 1 }, air = { 0.72, 0.94, 1 }, earth = { 0.78, 0.58, 0.32 },
-  fire = { 1, 0.48, 0.14 }, nature = { 0.45, 0.85, 0.35 }, ok = { 0.5, 0.86, 0.4 }, warn = { 1, 0.62, 0.25 }, bad = { 1, 0.42, 0.4 },
+  g0 = G0, g1 = G1, g2 = G2, g3 = G3, g4 = G4, g5 = G5, g6 = G6, a1 = A1, a2 = A2, ok = OK, bad = BAD,
+  -- nombres que usa el resto del código, apuntando al sistema
+  bg = G0, side = G0, card = G1, raised = G2, line = G3, edge = G3, track = G3,
+  title = G6, parch = G6, mute = G5, dim = G4,
+  accent = A1, blue = A1, water = A1, air = A1, earth = A1, fire = A1, nature = A1,
+  gold = A2, warn = A2,
+  -- colores de los elementos (solo HUD de tótems)
+  el = { earth = { 0.78, 0.58, 0.32 }, fire = { 1, 0.48, 0.14 }, water = { 0.3, 0.66, 1 }, air = { 0.72, 0.94, 1 } },
 }
 local TAB_STYLE = {
   personaje = { K.blue, "Interface\\Icons\\Spell_Nature_BloodLust" },
@@ -33,20 +45,33 @@ local TAB_STYLE = {
   pantalla = { K.accent, "Interface\\Icons\\INV_Misc_Spyglass_03" },
   notas = { K.air, "Interface\\Icons\\INV_Misc_Book_11" },
 }
--- Tipos de tarea: etiqueta, color e ícono
+local L = NS.L
+-- Las 6 pestañas. "parts" toma las pestañas de los datos (NS.TABS) o un bloque especial (@...).
+local VIEWS = {
+  { key = "hoy", label = L["Hoy"], icon = "Interface\\Icons\\Spell_Nature_BloodLust", lead = L["Tus números y lo que te toca ahora."], parts = { "@hoy" } },
+  { key = "guia", label = L["Guía"], icon = "Interface\\Icons\\INV_Misc_Note_01", lead = L["Misiones y ruta del 20 al 60."], parts = { "misiones", "ruta" } },
+  { key = "oficios", label = L["Oficios"], icon = "Interface\\Icons\\Trade_LeatherWorking", lead = L["Peletería, desuello, pesca, cocina y campamento."], parts = { "@profs", "oficios", "pesca", "campamento" } },
+  { key = "combate", label = L["Combate"], icon = "Interface\\Icons\\Spell_Nature_LightningShield", lead = L["Rotación, tótems, equipo, talentos, macros y teclas."], parts = { "combate", "@gear", "personaje", "teclas" } },
+  { key = "interfaz", label = L["Interfaz"], icon = "Interface\\Icons\\INV_Misc_Spyglass_03", lead = L["Diseños del Modo edición que compartieron jugadores de Forever."], parts = { "pantalla" } },
+  { key = "notas", label = L["Notas"], icon = "Interface\\Icons\\INV_Misc_Book_11", lead = L["Escribí lo que quieras: se guarda en tu personaje."], notes = true },
+}
+NS.VIEWS = VIEWS
+local function TabByKey(key) for _, t in ipairs(NS.TABS) do if t.key == key then return t end end end
+
+-- Tipos de tarea: etiqueta, color e ícono. Las etiquetas van en gris: el color queda para los estados.
 local TAGS = {
-  quest = { "Misión", K.gold, "Interface\\Icons\\INV_Misc_Note_01" },
-  dungeon = { "Mazmorra", K.bad, "Interface\\Icons\\INV_Misc_Bone_ElfSkull_01" },
-  buy = { "Comprar", { 1, 0.85, 0.35 }, "Interface\\Icons\\INV_Misc_Coin_01" },
-  train = { "Entrenar", K.water, "Interface\\Icons\\INV_Misc_Book_09" },
-  craft = { "Oficio", K.nature, "Interface\\Icons\\Trade_LeatherWorking" },
-  fish = { "Pesca", K.air, "Interface\\Icons\\Trade_Fishing" },
-  talent = { "Talento", { 0.75, 0.55, 1 }, "Interface\\Icons\\Spell_Nature_Lightning" },
-  gear = { "Equipo", K.warn, "Interface\\Icons\\INV_Chest_Leather_09" },
-  goal = { "Meta", K.blue, "Interface\\Icons\\Ability_Mount_MountainRam" },
+  quest = { "Misión", K.mute, "Interface\\Icons\\INV_Misc_Note_01" },
+  dungeon = { "Mazmorra", K.mute, "Interface\\Icons\\INV_Misc_Bone_ElfSkull_01" },
+  buy = { "Comprar", K.mute, "Interface\\Icons\\INV_Misc_Coin_01" },
+  train = { "Entrenar", K.mute, "Interface\\Icons\\INV_Misc_Book_09" },
+  craft = { "Oficio", K.mute, "Interface\\Icons\\Trade_LeatherWorking" },
+  fish = { "Pesca", K.mute, "Interface\\Icons\\Trade_Fishing" },
+  talent = { "Talento", K.mute, "Interface\\Icons\\Spell_Nature_Lightning" },
+  gear = { "Equipo", K.mute, "Interface\\Icons\\INV_Chest_Leather_09" },
+  goal = { "Meta", K.mute, "Interface\\Icons\\Ability_Mount_MountainRam" },
 }
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local function C3(c, a) return c[1], c[2], c[3], a or 1 end
 
 local function Grad(tex, orient, c1, a1, c2, a2)
@@ -58,9 +83,29 @@ local function Grad(tex, orient, c1, a1, c2, a2)
   end
 end
 
+-- Los 5 tamaños del sistema: cualquier tamaño pedido se lleva al más cercano
+local function Snap(size)
+  size = size or 12
+  if size >= 15 then return 18 elseif size >= 12.5 then return 13 elseif size >= 11 then return 12
+  elseif size >= 10 then return 10.5 else return 9 end
+end
+-- Letra elegida en la configuración: la del Códice (Inter), la del juego o una de LibSharedMedia
+local function FontPath(bold)
+  local db = NS.db
+  if db and db.font == "game" then return STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF" end
+  if db and db.font and db.font ~= "inter" and db.font ~= "game" and LibStub then
+    local LSM = LibStub("LibSharedMedia-3.0", true)
+    local path = LSM and LSM:Fetch("font", db.font, true)
+    if path then return path end
+  end
+  return bold and TITLE_FONT or BODY_FONT
+end
+NS.FontPath = FontPath
+
 local function Text(parent, size, color, font, layer)
   local fs = parent:CreateFontString(nil, layer or "OVERLAY")
-  if not fs:SetFont(font or BODY_FONT, size, "") then fs:SetFont("Fonts\\FRIZQT__.TTF", size, "") end
+  size = Snap(size)
+  if not fs:SetFont(FontPath(font == TITLE_FONT), size, "") then fs:SetFont("Fonts\\FRIZQT__.TTF", size, "") end
   fs:SetShadowOffset(1, -1)
   fs:SetShadowColor(0, 0, 0, 0.55)
   fs:SetJustifyH("LEFT")
@@ -153,7 +198,8 @@ end
 ----------------------------------------------------------------------
 local function Font(fs, size, color, bold)
   if not fs or not fs.SetFont then return fs end
-  if not fs:SetFont(bold and TITLE_FONT or BODY_FONT, size, "") then fs:SetFont("Fonts\\FRIZQT__.TTF", size, "") end
+  size = Snap(size)
+  if not fs:SetFont(FontPath(bold), size, "") then fs:SetFont("Fonts\\FRIZQT__.TTF", size, "") end
   fs:SetShadowOffset(1, -1)
   fs:SetShadowColor(0, 0, 0, 0.55)
   if color then fs:SetTextColor(C3(color)) end
@@ -177,8 +223,8 @@ end
 local btnFonts
 local function ButtonFonts()
   if btnFonts or not CreateFont then return btnFonts end
-  local n = CreateFont("PiolinCodexButtonFont"); n:SetFont(BODY_FONT, 12, ""); n:SetTextColor(C3(K.title)); n:SetShadowColor(0, 0, 0, 0)
-  local d = CreateFont("PiolinCodexButtonFontOff"); d:SetFont(BODY_FONT, 12, ""); d:SetTextColor(C3(K.dim)); d:SetShadowColor(0, 0, 0, 0)
+  local n = CreateFont("PiolinCodexButtonFont"); n:SetFont(FontPath(false), 12, ""); n:SetTextColor(C3(K.title)); n:SetShadowColor(0, 0, 0, 0)
+  local d = CreateFont("PiolinCodexButtonFontOff"); d:SetFont(FontPath(false), 12, ""); d:SetTextColor(C3(K.dim)); d:SetShadowColor(0, 0, 0, 0)
   btnFonts = { n, d }
   return btnFonts
 end
@@ -249,7 +295,7 @@ local function SkinWindow(f)
 end
 
 NS.Style = {
-  K = K, C3 = C3, BODY_FONT = BODY_FONT, TITLE_FONT = TITLE_FONT,
+  K = K, C3 = C3, BODY_FONT = BODY_FONT, TITLE_FONT = TITLE_FONT, Snap = Snap, FontPath = FontPath,
   Font = Font, Text = Text, Panel = Panel, Bar = Bar, Pill = Pill, Icon = Icon, Framed = Framed, Grad = Grad,
   SkinButton = SkinButton, SkinCheck = SkinCheck, SkinWindow = SkinWindow,
 }
@@ -302,7 +348,7 @@ end
 function NS.UpdateProgress()
   if not frame then return end
   local td, tn = 0, 0
-  for i, tab in ipairs(NS.TABS) do
+  for i, tab in ipairs(VIEWS) do
     local d, n = CountIds(NS.checks[tab.key] or {})
     td, tn = td + d, tn + n
     local b = nav[i]
@@ -374,6 +420,17 @@ local function NewPage(tab, parent)
   NS.checks[tab.key] = NS.checks[tab.key] or {}
 
   function P:Gap(n) self.y = self.y - (n or 10) end
+
+  -- Separador entre las partes de una pestaña (por ejemplo "Ruta 20-60" dentro de Guía)
+  function P:Sub(text)
+    local holder = Panel(child, K.bg, 0, K.bg, 0)   -- recuadro invisible: solo agrupa el texto
+    holder:SetSize(CW, 14)
+    local fs = Text(holder, 9, K.dim, TITLE_FONT)
+    fs:SetPoint("LEFT", 0, 0)
+    fs:SetText(text:upper())
+    self:Push(14, holder)
+    self.y = self.y - 24
+  end
 
   -- Título de la página: texto grande y la bajada en gris, sin bandas ni adornos
   function P:Heading(text, lead, color, icon, accent)
@@ -484,7 +541,7 @@ local function NewPage(tab, parent)
       -- misiones: el estado ("¡entregar!" / "en tu registro") se muestra en el lugar de la etiqueta,
       -- así no hace falta reservar otro espacio y el texto entra en menos renglones
       if isQuest then
-        local ready, active = Pill(row, "¡entregar!", K.ok), Pill(row, "en tu registro", K.water)
+        local ready, active = Pill(row, "¡entregar!", K.ok), Pill(row, "en tu registro", K.gold)
         for _, p in ipairs({ ready, active }) do
           p:SetPoint("TOPRIGHT", -12, -6); p:Hide()
           pw = math.max(pw, math.ceil(p:GetWidth() or 0))
@@ -624,33 +681,18 @@ local PROFS = {
   { "Primeros auxilios", "Interface\\Icons\\Spell_Holy_SealOfSacrifice", K.bad },
 }
 
-local function BuildCharLive(P)
+local function BuildTiles(P)
   local L = P.live
   local tw = math.floor((CW - 20) / 3)
-  L.lvl = Tile(P.child, 0, P.y, tw, "Interface\\Icons\\Spell_Nature_BloodLust", "Nivel", K.blue)
-  L.tal = Tile(P.child, tw + 10, P.y, tw, "Interface\\Icons\\Spell_Nature_Lightning", "Talentos", { 0.75, 0.55, 1 })
-  L.gold = Tile(P.child, (tw + 10) * 2, P.y, tw, "Interface\\Icons\\INV_Misc_Coin_02", "Oro", K.gold)
+  L.lvl = Tile(P.child, 0, P.y, tw, "Interface\\Icons\\Spell_Nature_BloodLust", NS.L["Nivel"], K.blue)
+  L.tal = Tile(P.child, tw + 10, P.y, tw, "Interface\\Icons\\Spell_Nature_Lightning", NS.L["Talentos"], K.accent)
+  L.gold = Tile(P.child, (tw + 10) * 2, P.y, tw, "Interface\\Icons\\INV_Misc_Coin_02", NS.L["Oro"], K.gold)
   P:Push(78, L.lvl, L.tal, L.gold)
   P.y = P.y - 88
+end
 
-  -- banner "Ahora te toca"
-  local b = Panel(P.child, K.raised, 1, K.line, 1)
-  b:SetPoint("TOPLEFT", 0, P.y)
-  b:SetSize(CW, 46)
-  local ba = b:CreateTexture(nil, "ARTWORK")
-  ba:SetPoint("TOPLEFT", 1, -1); ba:SetPoint("BOTTOMLEFT", 1, 1); ba:SetWidth(2)
-  ba:SetColorTexture(C3(K.accent))
-  local bi = Framed(b, "Interface\\Icons\\Spell_Nature_Windfury", 24)
-  bi:SetPoint("LEFT", 14, 0)
-  local bt = Text(b, 10.5, K.water)
-  bt:SetPoint("TOPLEFT", 50, -8)
-  bt:SetText("Ahora te toca")
-  L.hint = Text(b, 12, K.title)
-  L.hint:SetPoint("TOPLEFT", 50, -23)
-  L.hint:SetWidth(CW - 64)
-  P:Push(46, b)
-  P.y = P.y - 56
-
+local function BuildGear(P)
+  local L = P.live
   -- equipo
   local C = P:Card("Tu equipo", "Interface\\Icons\\INV_Chest_Leather_09", K.warn)
   L.dur = Bar(C.frame, 120, 12, K.ok)
@@ -700,7 +742,10 @@ local function BuildCharLive(P)
   L.emptyText = C:Text("", 11, K.warn)
   C:Finish()
 
-  -- oficios
+end
+
+local function BuildProfBars(P)
+  local L = P.live
   local O = P:Card("Oficios", "Interface\\Icons\\Trade_LeatherWorking", K.nature)
   L.profs = {}
   for _, pr in ipairs(PROFS) do
@@ -718,7 +763,10 @@ local function BuildCharLive(P)
   end
   O:Finish()
 
-  -- objetivos de equipo
+end
+
+local function BuildGoals(P)
+  local L = P.live
   local G = P:Card("Objetivos de equipo", "Interface\\Icons\\INV_Axe_09", K.blue)
   L.goals = {}
   for i = 1, 5 do
@@ -739,8 +787,10 @@ local function BuildCharLive(P)
   G:Finish()
 end
 
+local L_ = NS.L
 local function RefreshChar(L)
   local level = UnitLevel("player") or 0
+  if L.lvl then
   L.lvl.value:SetText(level)
   local maxLevel = (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 60
   if level >= maxLevel then
@@ -759,9 +809,9 @@ local function RefreshChar(L)
   else
   L.tal.value:SetText(free)
   if free > 0 then
-    L.tal.value:SetTextColor(C3(K.bad)); L.tal.sub:SetText("|cffff6060sin gastar: pasá por el árbol|r"); L.tal.bar:SetValue(1)
+    L.tal.value:SetTextColor(C3(K.gold)); L.tal.sub:SetText(L_["sin gastar"]); L.tal.bar:SetValue(1)
   else
-    L.tal.value:SetTextColor(C3(K.ok)); L.tal.sub:SetText("todos gastados"); L.tal.bar:SetValue(0)
+    L.tal.value:SetTextColor(C3(K.title)); L.tal.sub:SetText(L_["todos gastados"]); L.tal.bar:SetValue(0)
   end
   end
   local money = GetMoney()
@@ -770,8 +820,9 @@ local function RefreshChar(L)
   local pct = math.min(1, money / NS.MOUNT_GOAL)
   L.gold.bar:SetValue(pct)
   L.gold.sub:SetText("montura del 40: " .. math.floor(pct * 100) .. "%")
-  for _, h in ipairs(NS.HINTS) do if level <= h.max then L.hint:SetText(h.t); break end end
+  end
 
+  if L.slots then
   local empty = {}
   for i, b in ipairs(L.slots) do
     local tex = GetInventoryItemTexture("player", b.slot)
@@ -793,8 +844,9 @@ local function RefreshChar(L)
   L.dur:SetValue(dur / 100)
   L.dur.text:SetText(dur .. "%")
   L.dur:SetStatusBarColor(C3(dur <= 25 and K.bad or (dur <= 50 and K.warn or K.ok)))
+  end
 
-  for name, w in pairs(L.profs) do
+  for name, w in pairs(L.profs or {}) do
     local r, m = NS.Skill(name)
     if r then
       if w.last and r > w.last and NS.AnimFloat then NS.AnimFloat(w.bar, "+" .. (r - w.last) .. " " .. name) end
@@ -807,7 +859,7 @@ local function RefreshChar(L)
   end
 
   local goals = NS.GoalStatus and NS.GoalStatus() or {}
-  for i, r in ipairs(L.goals) do
+  for i, r in ipairs(L.goals or {}) do
     local g = goals[i]
     if g then
       r.check:SetShown(g.have); r.lvl:Show(); r.text:Show()
@@ -1632,18 +1684,165 @@ end
 ----------------------------------------------------------------------
 -- Construcción de cada pestaña
 ----------------------------------------------------------------------
-local function BuildPage(tab, parent)
-  if tab.notes then return BuildNotes(tab, parent) end
-  local style = TAB_STYLE[tab.key] or { K.gold, tab.icon }
+----------------------------------------------------------------------
+-- Portada "Hoy": tus números, lo que te toca y lo del próximo nivel
+----------------------------------------------------------------------
+local GUIDE_TABS = { "misiones", "ruta" }
+
+-- Las próximas tareas sin tildar de la guía, en orden
+local function NextTasks(count)
+  local out = {}
+  for _, key in ipairs(GUIDE_TABS) do
+    local tab = TabByKey(key)
+    for _, sec in ipairs(tab and tab.sections or {}) do
+      for _, it in ipairs(sec.items) do
+        if it.id and not DB().checks[it.id] then
+          out[#out + 1] = { id = it.id, t = it.t, sec = sec.h, key = key }
+          if #out >= count then return out end
+        end
+      end
+    end
+  end
+  return out
+end
+
+local function Tick(id)
+  DB().checks[id] = true
+  local row = NS.cbById[id]
+  if row then row.checked = true; row.paint() end
+  NS.Sound("tick")
+  NS.UpdateProgress()
+  NS.RefreshLive()
+end
+
+local function GoTask(id)
+  local wp = NS.WAYPOINTS and NS.WAYPOINTS[id]
+  if wp then if NS.GoTo then NS.GoTo(wp) end return end
+  local q = NS.AUTO and NS.AUTO.quest and NS.AUTO.quest[id]
+  if q and NS.QuestieGo then NS.QuestieGo(q) end
+end
+
+local function SetPill(p, label, color)
+  local up = label:upper():gsub("á", "Á"):gsub("é", "É"):gsub("í", "Í"):gsub("ó", "Ó"):gsub("ú", "Ú"):gsub("ñ", "Ñ")
+  p.text:SetText(up)
+  p.text:SetTextColor(C3(color))
+  p:SetWidth(math.max(50, p.text:GetStringWidth() + 14))
+end
+
+local function BuildToday(P)
+  BuildTiles(P)
+  P.kinds.char = true
+
+  local C = P:Card(L["Ahora te toca"], "Interface\\Icons\\Spell_Nature_Windfury", K.accent)
+  local hint = C:Text(" ", 10.5, K.mute)
+  local rowsTop = C.y
+  local rows = {}
+  for i = 1, 3 do
+    local r = CreateFrame("Button", nil, C.frame)
+    r:SetPoint("TOPLEFT", 1, C.y)
+    r:SetSize(CW - 2, 30)
+    local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.035)
+    if i > 1 then
+      local sep = r:CreateTexture(nil, "BACKGROUND")
+      sep:SetPoint("TOPLEFT", 0, 0); sep:SetPoint("TOPRIGHT", 0, 0); sep:SetHeight(1); sep:SetColorTexture(1, 1, 1, 0.035)
+    end
+    local box = r:CreateTexture(nil, "ARTWORK")
+    box:SetSize(14, 14); box:SetPoint("LEFT", 12, 0); box:SetColorTexture(0.23, 0.27, 0.34, 1)
+    local inner = r:CreateTexture(nil, "ARTWORK", nil, 1)
+    inner:SetPoint("TOPLEFT", box, 1, -1); inner:SetPoint("BOTTOMRIGHT", box, -1, 1); inner:SetColorTexture(C3(K.card))
+    r.text = Text(r, 12, K.parch)
+    r.text:SetPoint("LEFT", 36, 0)
+    r.text:SetWidth(CW - 36 - 132)
+    if r.text.SetMaxLines then r.text:SetMaxLines(1) end
+    r.text:SetWordWrap(false)
+    r.tag = Pill(r, "misión", K.mute)
+    r.tag:SetPoint("RIGHT", -40, 0)
+    r.go = CreateFrame("Button", nil, r)
+    r.go:SetSize(20, 20)
+    r.go:SetPoint("RIGHT", -12, 0)
+    local gi = Icon(r.go, "Interface\\Icons\\INV_Misc_Map_01", 20)
+    gi:SetAllPoints()
+    r.go:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    r.go:SetScript("OnClick", function() if r.id then GoTask(r.id) end end)
+    Tooltip(r.go, L["Ir"], { "Flecha y marca en el mapa hacia el lugar." })
+    r:SetScript("OnClick", function(self) if self.id then Tick(self.id) end end)
+    r:SetScript("OnEnter", function(self)
+      if not self.task then return end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine(self.task.sec, C3(K.gold))
+      GameTooltip:AddLine(self.task.t, 1, 1, 1, true)
+      GameTooltip:AddLine("Clic: tildar.", 0.6, 0.63, 0.68)
+      GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", GameTooltip_Hide)
+    rows[i] = r
+    C.y = C.y - 30
+  end
+  local done = Text(C.frame, 12, K.ok)
+  done:SetPoint("TOPLEFT", 14, rowsTop - 8)
+  C:Finish()
+
+  local N = P:Card(L["Para el próximo nivel"], "Interface\\Icons\\INV_Misc_Book_09", K.accent)
+  local tip = N:Text(" \n ", 12, K.parch)
+  local trainer = N:Text(" ", 10.5, K.mute)
+  N:Finish()
+
+  table.insert(P.refreshers, function()
+    local level = UnitLevel("player") or 1
+    local h = ""
+    for _, x in ipairs(NS.HINTS or {}) do if level <= x.max then h = x.t; break end end
+    hint:SetText(h)
+    local tasks = NextTasks(3)
+    for i, r in ipairs(rows) do
+      local t = tasks[i]
+      r.id, r.task = t and t.id, t
+      if t then
+        r.text:SetText(t.t)
+        local qid = NS.AUTO and NS.AUTO.quest and NS.AUTO.quest[t.id]
+        local st = qid and NS.QuestStatus and NS.QuestStatus(qid)
+        if st == "ready" then SetPill(r.tag, L["entregar"], K.ok)
+        elseif st == "active" then SetPill(r.tag, L["en registro"], K.gold)
+        else SetPill(r.tag, (TAGS[TagFor(t.key, t.id, t.t)] or TAGS.quest)[1], K.mute) end
+        r.go:SetShown((NS.WAYPOINTS and NS.WAYPOINTS[t.id]) or (qid and NS.HasQuestie and NS.HasQuestie()) and true or false)
+        r:Show()
+      else
+        r:Hide()
+      end
+    end
+    done:SetText(#tasks == 0 and L["¡Guía al día! No queda nada pendiente."] or "")
+    -- próximo consejo de nivel y lo próximo en el instructor
+    local nextLv, nextTip
+    for lv = level + 1, 60 do if NS.LEVEL_TIPS and NS.LEVEL_TIPS[lv] then nextLv, nextTip = lv, NS.LEVEL_TIPS[lv]; break end end
+    tip:SetText(nextTip and ("|cfff2c94c" .. L["Nivel %d"]:format(nextLv) .. ":|r " .. nextTip) or "")
+    local tl = NS.NextTrainerLevel and NS.NextTrainerLevel(level + 1)
+    if tl then
+      local names, seen = {}, {}
+      for _, sp in ipairs(NS.SpellsAtLevel(tl)) do
+        if sp.advice ~= "skip" and #names < 4 and not seen[sp.name] then seen[sp.name] = true; names[#names + 1] = sp.name end
+      end
+      trainer:SetText(L["En el instructor"] .. " (" .. L["Nivel %d"]:format(tl):lower() .. "): " .. table.concat(names, ", "))
+    else
+      trainer:SetText("")
+    end
+  end)
+end
+
+----------------------------------------------------------------------
+-- Páginas
+----------------------------------------------------------------------
+-- Nombre de cada parte dentro de su pestaña nueva
+local SUB = { ruta = "Ruta 20-60", personaje = "Talentos", oficios = "Peletería y desuello", pesca = "Pesca y cocina",
+  campamento = "Campamento", teclas = "Teclas", combate = "Combate", misiones = "Misiones" }
+
+local function AddTab(P, tab, first)
+  local style = TAB_STYLE[tab.key] or { K.accent, tab.icon }
   local color = style[1]
-  local P = NewPage(tab, parent)
-  P:Heading(tab.label == "Ruta" and "Ruta 20-60" or tab.label, tab.lead, K.gold, style[2], color)
-  if tab.live == "char" then BuildCharLive(P) end
+  if not first then P:Sub(SUB[tab.key] or tab.label) end
   if tab.live == "mats" then BuildMatsLive(P) end
   if tab.live == "fish" then BuildFishLive(P) end
   if tab.live == "camp" then BuildCampLive(P) end
+  if tab.live and tab.live ~= "char" then P.kinds[tab.live] = true end
   if NS.PageExtras and NS.PageExtras[tab.key] then
-    P.refreshers = P.refreshers or {}
     local H = { Text = Text, Framed = Framed, Pill = Pill, K = K, CW = CW, Bar = Bar, Panel = Panel, Grad = Grad, Icon = Icon }
     local ex = NS.PageExtras[tab.key]
     if type(ex) == "function" then ex(P, H) else for _, fn in ipairs(ex) do fn(P, H) end end
@@ -1673,31 +1872,50 @@ local function BuildPage(tab, parent)
     C:Finish()
   end
   if tab.macros then BuildMacros(P, color) end
+end
+
+local function BuildView(view, parent)
+  if view.notes then return BuildNotes(view, parent) end
+  local P = NewPage(view, parent)
+  P.refreshers, P.kinds = {}, {}
+  P:Heading(view.label, view.lead, K.gold, view.icon, K.accent)
+  local first = true
+  for _, part in ipairs(view.parts) do
+    if part == "@hoy" then BuildToday(P)
+    elseif part == "@gear" then BuildGear(P); BuildGoals(P); P.kinds.char = true
+    elseif part == "@profs" then BuildProfBars(P); P.kinds.char = true
+    else
+      local tab = TabByKey(part)
+      if tab then AddTab(P, tab, first) end
+    end
+    first = false
+  end
   P:Finish()
   P.scroll.live = P.live
-  P.scroll.kind = tab.live
+  P.scroll.kinds = P.kinds
   P.scroll.refreshers = P.refreshers
   return P.scroll
 end
 
 function NS.RefreshLive()
   if not frame then return end
-  for key, page in pairs(pages) do
-    for _, f in ipairs(rawget(page, "refreshers") or {}) do f() end
-    local L = page.live
-    if L and page.kind == "char" then RefreshChar(L) end
-    if L and page.kind == "mats" then RefreshMats(L) end
-    if L and page.kind == "fish" then RefreshFish(L) end
-    if L and page.kind == "camp" then RefreshCamp(L) end
+  for _, page in pairs(pages) do
+    for _, f in ipairs(rawget(page, "refreshers") or {}) do pcall(f) end
+    local Lv, kinds = page.live, rawget(page, "kinds") or {}
+    if Lv and kinds.char then RefreshChar(Lv) end
+    if Lv and kinds.mats then RefreshMats(Lv) end
+    if Lv and kinds.fish then RefreshFish(Lv) end
+    if Lv and kinds.camp then RefreshCamp(Lv) end
   end
   if frame.portrait then SetPortraitTexture(frame.portrait, "player") end
-  frame.sub:SetText("Enano  ·  Chamán Mejora  ·  Nivel " .. (UnitLevel("player") or "?"))
+  frame.sub:SetText("Chamán Mejora  ·  " .. L["Nivel %d"]:format(UnitLevel("player") or 0):lower())
 end
 
 function NS.ShowTab(index)
-  local prev = DB().lastTab
-  for i, tab in ipairs(NS.TABS) do
-    local page = pages[tab.key]
+  if not VIEWS[index] then index = 1 end
+  local prev = DB().lastView
+  for i, view in ipairs(VIEWS) do
+    local page = pages[view.key]
     if page then
       page:SetShown(i == index)
       if i == index and prev and prev ~= index and frame:IsShown() and NS.AnimTab then NS.AnimTab(page, frame) end
@@ -1705,12 +1923,30 @@ function NS.ShowTab(index)
     local b = nav[i]
     if b then
       local on = i == index
-      b.sel:SetShown(on); b.accent:SetShown(on); if rawget(b, "glow") then b.glow:SetShown(on) end
-      b.label:SetTextColor(C3(on and { 1, 1, 1 } or K.parch))
+      b.sel:SetShown(on); b.accent:SetShown(on)
+      b.label:SetTextColor(C3(on and K.title or K.mute))
     end
   end
-  DB().lastTab = index
+  DB().lastView = index
   NS.RefreshLive()
+end
+
+function NS.ApplyWindowScale()
+  if frame then frame:SetScale(DB().winScale or 1) end
+end
+
+local function HeadButton(parent, glyph, tip)
+  local b = CreateFrame("Button", nil, parent)
+  b:SetSize(22, 22)
+  local bg = Panel(b, K.bg, 1, K.edge, 1)
+  bg:SetAllPoints()
+  b.t = Text(bg, 13, K.mute)
+  b.t:SetPoint("CENTER", 0, 1)
+  b.t:SetJustifyH("CENTER")
+  b.t:SetText(glyph)
+  local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.06)
+  Tooltip(b, tip, {})
+  return b
 end
 
 local function BuildFrame()
@@ -1724,61 +1960,47 @@ local function BuildFrame()
   f:RegisterForDrag("LeftButton")
   f:SetScript("OnDragStart", f.StartMoving)
   f:SetScript("OnDragStop", f.StopMovingOrSizing)
-  -- marco liso con borde de 1 px
   f:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, tile = false, edgeSize = 1, insets = { left = 1, right = 1, top = 1, bottom = 1 } })
-  f:SetBackdropColor(K.bg[1], K.bg[2], K.bg[3], 0.98)
+  f:SetBackdropColor(K.bg[1], K.bg[2], K.bg[3], 0.97)
   f:SetBackdropBorderColor(C3(K.edge))
   f:Hide()
   tinsert(UISpecialFrames, "PiolinCodexFrame")
+  NS.ApplyWindowScale()
 
-  -- línea azul arriba que se desvanece hacia la derecha
-  local topLine = f:CreateTexture(nil, "ARTWORK")
-  topLine:SetPoint("TOPLEFT", 1, -1); topLine:SetPoint("TOPRIGHT", -1, -1); topLine:SetHeight(2)
-  Grad(topLine, "HORIZONTAL", K.accent, 1, K.accent, 0)
-
-  -- retrato, título y personaje
+  -- cabecera: retrato, nombre, progreso de la guía, configuración y cerrar
   local por = f:CreateTexture(nil, "ARTWORK")
-  por:SetSize(36, 36)
-  por:SetPoint("TOPLEFT", 16, -15)
+  por:SetSize(32, 32)
+  por:SetPoint("TOPLEFT", 16, -12)
   SetPortraitTexture(por, "player")
   f.portrait = por
-
-  local title = Text(f, 17, K.title, TITLE_FONT)
-  title:SetPoint("TOPLEFT", 62, -16)
+  local title = Text(f, 18, K.title, TITLE_FONT)
+  title:SetPoint("TOPLEFT", 56, -12)
   title:SetText("Códice de Piolin")
-  f.sub = Text(f, 11.5, K.mute)
-  f.sub:SetPoint("TOPLEFT", 62, -37)
+  f.sub = Text(f, 10.5, K.mute)
+  f.sub:SetPoint("TOPLEFT", 56, -34)
 
-  -- progreso total a la derecha
-  f.pctText = Text(f, 16, K.title, TITLE_FONT)
-  f.pctText:SetPoint("TOPRIGHT", -54, -15)
-  f.pctText:SetJustifyH("RIGHT")
-  local pl = Text(f, 10.5, K.mute)
-  pl:SetPoint("RIGHT", f.pctText, "LEFT", -8, 0)
-  pl:SetText("Guía completada")
-  pl:SetJustifyH("RIGHT")
-  f.pctBar = Bar(f, 170, 4, K.accent)
-  f.pctBar:SetPoint("TOPRIGHT", -54, -41)
-  f.pctBar.text:Hide()
-
-  -- cerrar: botón cuadrado con borde fino
-  local close = CreateFrame("Button", nil, f)
-  close:SetSize(26, 26)
-  close:SetPoint("TOPRIGHT", -16, -20)
-  local cbg = Panel(close, K.bg, 1, K.edge, 1)
-  cbg:SetAllPoints()
-  close.x = Text(cbg, 15, K.mute)
-  close.x:SetPoint("CENTER", 0, 1)
-  close.x:SetText("×")
-  local chl = close:CreateTexture(nil, "HIGHLIGHT")
-  chl:SetAllPoints(); chl:SetColorTexture(1, 1, 1, 0.06)
+  local close = HeadButton(f, "×", L["Cerrar"])
+  close:SetPoint("TOPRIGHT", -16, -16)
   close:SetScript("OnClick", function() f:Hide() end)
+  local gear = HeadButton(f, "≡", L["Configuración"])
+  gear:SetPoint("RIGHT", close, "LEFT", -8, 0)
+  gear:SetScript("OnClick", function() if NS.OpenOptions then NS.OpenOptions() end end)
+
+  f.pctBar = Bar(f, 90, 3, K.accent)
+  f.pctBar:SetPoint("RIGHT", gear, "LEFT", -16, 0)
+  f.pctBar.text:Hide()
+  f.pctText = Text(f, 10.5, K.mute)
+  f.pctText:SetPoint("RIGHT", f.pctBar, "LEFT", -8, 0)
+  f.pctText:SetJustifyH("RIGHT")
+  local pctHit = CreateFrame("Frame", nil, f)
+  pctHit:SetPoint("TOPLEFT", f.pctText, "TOPLEFT", -4, 6); pctHit:SetPoint("BOTTOMRIGHT", f.pctBar, "BOTTOMRIGHT", 4, -6)
+  Tooltip(pctHit, L["Guía completada"], { "Tareas tildadas de todas las pestañas." })
 
   local div = f:CreateTexture(nil, "ARTWORK")
   div:SetPoint("TOPLEFT", 1, -HEAD_H); div:SetPoint("TOPRIGHT", -1, -HEAD_H); div:SetHeight(1)
   div:SetColorTexture(C3(K.line))
 
-  -- navegación lateral
+  -- navegación lateral: 6 pestañas
   local side = Panel(f, K.side, 1, K.side, 1)
   side:SetPoint("TOPLEFT", 1, -(HEAD_H + 1))
   side:SetPoint("BOTTOMLEFT", 1, 1)
@@ -1786,42 +2008,40 @@ local function BuildFrame()
   local sideLine = side:CreateTexture(nil, "ARTWORK")
   sideLine:SetPoint("TOPRIGHT", 0, 0); sideLine:SetPoint("BOTTOMRIGHT", 0, 0); sideLine:SetWidth(1)
   sideLine:SetColorTexture(C3(K.line))
-  for i, tab in ipairs(NS.TABS) do
-    local st = TAB_STYLE[tab.key] or { K.gold, tab.icon }
+  for i, view in ipairs(VIEWS) do
     local b = CreateFrame("Button", nil, side)
-    b:SetSize(NAV_W - 16, 36)
-    b:SetPoint("TOPLEFT", 8, -10 - (i - 1) * 38)
+    b:SetSize(NAV_W - 1, 32)
+    b:SetPoint("TOPLEFT", 0, -8 - (i - 1) * 32)
     b.sel = b:CreateTexture(nil, "BACKGROUND")
     b.sel:SetAllPoints()
-    b.sel:SetColorTexture(0.08, 0.114, 0.165, 1)
+    b.sel:SetColorTexture(C3(K.card))
     b.accent = b:CreateTexture(nil, "ARTWORK")
-    b.accent:SetPoint("TOPLEFT", 0, -6); b.accent:SetPoint("BOTTOMLEFT", 0, 6); b.accent:SetWidth(2)
+    b.accent:SetPoint("TOPLEFT", 0, 0); b.accent:SetPoint("BOTTOMLEFT", 0, 0); b.accent:SetWidth(2)
     b.accent:SetColorTexture(C3(K.accent))
     local hl = b:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
     hl:SetColorTexture(1, 1, 1, 0.04)
-    local ic = Framed(b, st[2], 20)
-    ic:SetPoint("LEFT", 10, 0)
-    b.label = Text(b, 12.5, K.parch)
-    b.label:SetPoint("LEFT", ic, "RIGHT", 10, 0)
-    b.label:SetText(tab.key == "ruta" and "Ruta 20-60" or tab.label)
+    local ic = Framed(b, view.icon, 16)
+    ic:SetPoint("LEFT", 14, 0)
+    b.label = Text(b, 12, K.mute)
+    b.label:SetPoint("LEFT", ic, "RIGHT", 8, 0)
+    b.label:SetText(view.label)
     b.count = Text(b, 10.5, K.dim)
-    b.count:SetPoint("RIGHT", -10, 0)
+    b.count:SetPoint("RIGHT", -12, 0)
     b.count:SetJustifyH("RIGHT")
     b:SetScript("OnClick", function() NS.Sound("tab"); NS.ShowTab(i) end)
-    -- a la izquierda, fuera de la ventana: a la derecha tapaba el título de la pestaña
-    Tooltip(b, tab.key == "ruta" and "Ruta 20-60" or tab.label, { tab.lead }, "ANCHOR_LEFT")
+    Tooltip(b, view.label, { view.lead }, "ANCHOR_LEFT")
     nav[i] = b
   end
-  local hint = Text(side, 10, K.dim)
-  hint:SetPoint("BOTTOMLEFT", 18, 14)
-  hint:SetWidth(NAV_W - 30)
-  hint:SetText("/piolin ayuda  ·  Esc para cerrar")
+  local hint = Text(side, 10.5, K.dim)
+  hint:SetPoint("BOTTOMLEFT", 14, 12)
+  hint:SetWidth(NAV_W - 24)
+  hint:SetText("/piolin ayuda")
 
-  for _, tab in ipairs(NS.TABS) do pages[tab.key] = BuildPage(tab, f) end
+  for _, view in ipairs(VIEWS) do pages[view.key] = BuildView(view, f) end
   f:SetScript("OnShow", function() if NS.AutoCheck then NS.AutoCheck(true) end NS.UpdateProgress(); NS.RefreshLive() end)
   NS.pages = pages
-  NS.ShowTab(DB().lastTab or 1)
+  NS.ShowTab(DB().lastView or 1)
   NS.UpdateProgress()
 end
 

@@ -30,7 +30,7 @@ fire('PLAYER_LEVEL_UP',25); fire('MERCHANT_SHOW'); fire('AUCTION_HOUSE_SHOW'); f
 run(); run()
 print('chat:'); [print('  ',m) for m in list(L.globals().__chat.values())[-8:]]
 fold=L.eval('''function(NS)
-  local p = NS.pages.misiones
+  local p = NS.pages.guia
   return p and "ok" or "sin pagina"
 end''')
 print('pagina misiones', fold(NS))
@@ -62,10 +62,10 @@ ex=L.eval('''function(NS)
   return r1, GetBindingKey("PIOLINCODEX_TOGGLE"), tostring(rawget(NS.cbById.dm7,"questState")), tostring(rawget(NS.cbById.dm1,"questState"))
 end''')
 print('extras:', ex(NS))
-chk=L.eval('''function(NS) return tostring(PiolinCodexDB.checks.dm7), NS.QuestStatus(166), tostring(PiolinCodexDB.checks.dm4), NS.cbById.dm4 and tostring(rawget(NS.cbById.dm4,"questState")) end''')
+chk=L.eval('''function(NS) return tostring(PiolinCodexCharDB.checks.dm7), NS.QuestStatus(166), tostring(PiolinCodexCharDB.checks.dm4), NS.cbById.dm4 and tostring(rawget(NS.cbById.dm4,"questState")) end''')
 print('dm7 tildada:', chk(NS))
 dbg=L.eval('''function(NS)
-  local p = NS.pages.misiones
+  local p = NS.pages.guia
   local r = rawget(p, "refreshers")
   local out = {"refreshers=" .. tostring(r and #r)}
   if r then r[1]() end
@@ -86,7 +86,7 @@ snd=L.eval('''function(NS)
   for _, t in ipairs(__timers) do t() end; __timers = {}
   local sl = _G.PiolinCodexVolume
   sl.__scripts.OnValueChanged(sl, 0.3)
-  table.insert(out, "vol=" .. tostring(PiolinCodexDB.soundVolume))
+  table.insert(out, "vol=" .. tostring(PiolinCodexCharDB.soundVolume))
   NS.Alert("tent", "x"); NS.Alert("q123", "y")
   table.insert(out, "sonidos=" .. #__played .. " ultimo=" .. __played[#__played])
   __fire("PLAYER_LOGOUT")
@@ -120,7 +120,7 @@ rt=L.eval('''function(NS)
   table.insert(out, "tooltips enganchados=" .. #__tdp)
   for _, f in ipairs(__tdp) do f(GameTooltip, {}) end
   NS.GoTo(NS.WAYPOINTS.tc1)
-  table.insert(out, "mapa resuelto=" .. tostring(PiolinCodexDB.way and PiolinCodexDB.way[1]))
+  table.insert(out, "mapa resuelto=" .. tostring(PiolinCodexCharDB.way and PiolinCodexCharDB.way[1]))
   table.insert(out, "anim error=" .. tostring(NS.lastAnimError))
   return table.concat(out, " | ")
 end''')
@@ -142,7 +142,7 @@ ah=L.eval('''function(NS)
     for _, tk in ipairs(__tickers) do if not tk.dead then pcall(tk.f) end end
     __fire("COMMODITY_SEARCH_RESULTS_UPDATED", __ahq[#__ahq])
   end
-  table.insert(out, "consultas=" .. #__ahq .. " precio guardado=" .. tostring(PiolinCodexDB.prices[2318] and PiolinCodexDB.prices[2318].p))
+  table.insert(out, "consultas=" .. #__ahq .. " precio guardado=" .. tostring(PiolinCodexCharDB.prices[2318] and PiolinCodexCharDB.prices[2318].p))
   for _, f in ipairs(__hooks) do f() end
   for _, t in ipairs(__timers) do pcall(t) end; __timers = {}
   table.insert(out, "hooks=" .. #__hooks)
@@ -160,26 +160,26 @@ chk2=L.eval('''function()
 end''')
 print('aviso:', chk2())
 chk3=L.eval('''function()
-  PiolinCodexDB.noReminders = nil
+  PiolinCodexCharDB.noReminders = nil
   __fire("PLAYER_TARGET_CHANGED")
   for _, f in ipairs(__frames) do local t = rawget(f, "__text"); if type(t) == "string" and t:find("Antes de pelear") then return t end end
   return "sin aviso"
 end''')
 print('aviso2:', chk3())
 au=L.eval('''function(NS)
-  PiolinCodexDB.checks = {}
+  PiolinCodexCharDB.checks = {}
   NS.SetFlag("lure"); NS.SetFlag("caught6308")
   for _, t in ipairs(__timers) do pcall(t) end; __timers = {}
   NS.AutoCheck(false)
   local got = {}
   for _, id in ipairs({"t21","t24","t25","tr1","ah1","ah3","f2b","f2c","f4b","f5a","r20a","lp4","lw1"}) do
-    table.insert(got, id .. "=" .. (PiolinCodexDB.checks[id] and "si" or "no"))
+    table.insert(got, id .. "=" .. (PiolinCodexCharDB.checks[id] and "si" or "no"))
   end
   return table.concat(got, " ")
 end''')
 print('auto:', au(NS))
 sk=L.eval('''function(NS)
-  PiolinCodexDB.noSkinTips = nil
+  PiolinCodexCharDB.noSkinTips = nil
   local lines = {}
   GameTooltip.AddLine = function(self, t) table.insert(lines, t) end
   for _, f in ipairs(__tdp) do f(GameTooltip, {}) end
@@ -191,7 +191,7 @@ dbg=L.eval('''function(NS)
   table.insert(r, "tdp=" .. #__tdp)
   table.insert(r, "skill=" .. tostring((NS.Skill("Desuello"))))
   table.insert(r, "exists=" .. tostring(UnitExists("mouseover")))
-  table.insert(r, "noSkin=" .. tostring(PiolinCodexDB.noSkinTips))
+  table.insert(r, "noSkin=" .. tostring(PiolinCodexCharDB.noSkinTips))
   return table.concat(r, " ")
 end''')
 print('dbg:', dbg(NS))
@@ -201,10 +201,10 @@ tr=L.eval('''function(NS)
   table.insert(out, "pelet1=" .. l[1].t[2] .. (l[1].same and " (zona)" or ""))
   local c = NS.RankedTrainers("Chamán")
   table.insert(out, "chaman1=" .. c[1].t[2])
-  PiolinCodexDB.noAutoTrack = nil; __fire("ZONE_CHANGED_NEW_AREA"); for _, t in ipairs(__timers) do pcall(t) end; __timers = {}
+  PiolinCodexCharDB.noAutoTrack = nil; __fire("ZONE_CHANGED_NEW_AREA"); for _, t in ipairs(__timers) do pcall(t) end; __timers = {}
   table.insert(out, "rastreo=" .. tostring(__TR[2].active) .. "/" .. tostring(__TR[3].active) .. " hierbas=" .. tostring(__TR[1].active))
   SlashCmdList.PIOLINCODEX("instructor pesca")
-  table.insert(out, "flecha=" .. tostring(PiolinCodexDB.way and PiolinCodexDB.way[4]))
+  table.insert(out, "flecha=" .. tostring(PiolinCodexCharDB.way and PiolinCodexCharDB.way[4]))
   NS.ShowTab(5); NS.RefreshLive()
   return table.concat(out, " | ")
 end''')

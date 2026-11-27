@@ -4,7 +4,7 @@
 -- Fuente de ubicaciones: Warcraft Tavern, guías de instructores de WoW Forever (noviembre 2026)
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local function Print(m) NS.Print(m) end
 
 -- Zonas: nombres posibles en el cliente y número de mapa de Classic como respaldo
@@ -286,7 +286,7 @@ local ev = CreateFrame("Frame")
 NS.SafeEvents(ev, { "ZONE_CHANGED_NEW_AREA", "PLAYER_ENTERING_WORLD" })
 ev:SetScript("OnEvent", function()
   C_Timer.After(1, function()
-    if not PiolinCodexDB then return end
+    if not NS.db then return end
     if NS.frame and NS.frame:IsShown() then NS.RefreshLive() end
     if DB().noAutoTrack then return end
     local myMap = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")

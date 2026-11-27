@@ -1,7 +1,7 @@
 -- Códice de Piolin: bloques visuales para Combate, Campamento, Pesca y Oficios
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local I = "Interface\\Icons\\"
 
 -- Suma un bloque a una pestaña sin pisar los que ya tenga

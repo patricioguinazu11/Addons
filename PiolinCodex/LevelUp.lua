@@ -2,7 +2,7 @@
 -- Qué subió (vida, maná, estadísticas), si hay punto de talento y qué hay nuevo en el instructor.
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local function Print(msg) print("|cffd9a93fCódice:|r " .. msg) end
 
 ----------------------------------------------------------------------
@@ -187,7 +187,7 @@ local function Build()
   card:EnableMouse(true)
   card:SetMovable(true)
   card:RegisterForDrag("LeftButton")
-  card:SetScript("OnDragStart", card.StartMoving)
+  card:SetScript("OnDragStart", NS.DragStart)
   card:SetScript("OnDragStop", card.StopMovingOrSizing)
   card:Hide()
   rawset(card, "name", "PiolinCodexLevelCard")
@@ -272,7 +272,7 @@ local function Signed(v) return (v > 0 and "+" or "") .. v end
 
 -- level: nivel nuevo · g: ganancias (o nil en la vista previa) · preview: armado a mano con /piolin nivel
 function NS.ShowLevelCard(level, g, preview)
-  if not PiolinCodexDB or not NS.Style then return end
+  if not NS.db or not NS.Style then return end
   if not card then Build() end
   local S, K = NS.Style, NS.Style.K
   Reset()

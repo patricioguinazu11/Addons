@@ -1,7 +1,7 @@
 -- Códice de Piolin: sonidos del propio WoW y su panel de opciones
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 
 -- Sonidos del juego: nombre, constante de SOUNDKIT y número de respaldo
 NS.SOUNDS = {
@@ -55,7 +55,7 @@ end
 local CVAR = "Sound_DialogVolume"
 local restoreToken = 0
 local function RestoreDialog()
-  local orig = PiolinCodexDB and DB().dialogVolOrig
+  local orig = NS.db and DB().dialogVolOrig
   if orig then SetCVar(CVAR, orig); DB().dialogVolOrig = nil end
 end
 NS.RestoreDialogVolume = RestoreDialog
@@ -63,8 +63,8 @@ NS.RestoreDialogVolume = RestoreDialog
 function NS.PlaySoundKey(soundKey)
   local id = SoundId(BY_KEY[soundKey])
   if not id then return end
-  local channel = (PiolinCodexDB and DB().soundChannel) or "Dialog"
-  local vol = (PiolinCodexDB and DB().soundVolume) or 0.5
+  local channel = (NS.db and DB().soundChannel) or "Dialog"
+  local vol = (NS.db and DB().soundVolume) or 0.5
   if channel == "Dialog" and vol < 1 and GetCVar and SetCVar then
     if not DB().dialogVolOrig then DB().dialogVolOrig = tonumber(GetCVar(CVAR)) or 1 end
     SetCVar(CVAR, DB().dialogVolOrig * vol)
@@ -79,10 +79,10 @@ end
 local guard = CreateFrame("Frame")
 guard:RegisterEvent("PLAYER_LOGIN")
 guard:RegisterEvent("PLAYER_LOGOUT")
-guard:SetScript("OnEvent", function() if PiolinCodexDB then RestoreDialog() end end)
+guard:SetScript("OnEvent", function() if NS.db then RestoreDialog() end end)
 
 function NS.Sound(eventKey)
-  if not PiolinCodexDB or DB().noSound then return end
+  if not NS.db or DB().noSound then return end
   local choice = DB().sounds and DB().sounds[eventKey]
   NS.PlaySoundKey(choice or EVENT_DEF[eventKey] or EVENT_DEF.other)
 end
@@ -257,10 +257,19 @@ function NS.BuildSoundPanel(parentCategory, parentPanel)
     for _, dd in ipairs(rows) do dd.refresh() end
   end)
 
+  local sub
   if Settings and Settings.RegisterCanvasLayoutSubcategory and parentCategory then
-    Settings.RegisterCanvasLayoutSubcategory(parentCategory, p, p.name)
+    sub = Settings.RegisterCanvasLayoutSubcategory(parentCategory, p, p.name)
   elseif InterfaceOptions_AddCategory then
     InterfaceOptions_AddCategory(p)
   end
   NS.soundPanel = p
+  -- botón "Opciones de sonido" de la configuración
+  function NS.OpenSoundOptions()
+    if Settings and Settings.OpenToCategory and sub then
+      Settings.OpenToCategory(sub.GetID and sub:GetID() or sub.ID)
+    elseif InterfaceOptionsFrame_OpenToCategory then
+      InterfaceOptionsFrame_OpenToCategory(p); InterfaceOptionsFrame_OpenToCategory(p)
+    end
+  end
 end

@@ -1,7 +1,7 @@
 -- Códice de Piolin: pistas de desuello en el tooltip de las bestias
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 
 -- Tipos de criatura que se pueden desollar (nombres del cliente en español y en inglés)
 local SKINNABLE = { ["bestia"] = true, ["beast"] = true, ["dragonante"] = true, ["dragonkin"] = true, ["dragón"] = true }
@@ -34,7 +34,7 @@ local TEXT = {
 local function Secret(v) return NS.IsSecret and NS.IsSecret(v) end
 
 local function AddLines(tt)
-  if not PiolinCodexDB or DB().noSkinTips then return end
+  if not NS.db or DB().noSkinTips then return end
   local ok, _, unit = pcall(tt.GetUnit, tt)
   if not ok or not unit or Secret(unit) then unit = "mouseover" end
   if not UnitExists(unit) or UnitIsPlayer(unit) then return end

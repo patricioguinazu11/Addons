@@ -3,7 +3,7 @@
 local ADDON, NS = ...
 if not C_AuctionHouse then return end   -- en Classic sigue funcionando la versión de Trade.lua y Gear.lua
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local function Print(m) NS.Print(m) end
 local function Money(c) return NS.Money(math.floor(c + 0.5)) end
 
@@ -127,7 +127,7 @@ local function ItemIdOf(sellFrame)
 end
 
 local function UpdateHelper(sellFrame, isCommodity)
-  if not PiolinCodexDB or DB().noSellHelper then return end
+  if not NS.db or DB().noSellHelper then return end
   local h = SellHelper(sellFrame, isCommodity)
   local id = ItemIdOf(sellFrame)
   if not id then h.label:SetText(""); h.btn:Hide(); return end

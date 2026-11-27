@@ -1,8 +1,8 @@
 -- Códice de Piolin: animaciones chamánicas (elementos, tótems, relámpagos)
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
-local function On() return PiolinCodexDB and not DB().noAnim end
+local function DB() return NS.db end
+local function On() return NS.db and not DB().noAnim end
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local GLOW = "Interface\\Buttons\\UI-ActionButton-Border"
 local SPARK = "Interface\\CastingBar\\UI-CastingBar-Spark"
@@ -18,11 +18,13 @@ local TOTEMS = {
 }
 
 ----------------------------------------------------------------------
--- Motor de interpolación (un solo OnUpdate para todo)
+-- Motor de interpolación (un solo OnUpdate para todo). El marco se oculta cuando no hay
+-- animaciones, así el OnUpdate no corre en cada cuadro sin necesidad.
 ----------------------------------------------------------------------
 local tweens = {}
 local driver = CreateFrame("Frame")
-driver:SetScript("OnUpdate", function(_, dt)
+driver:Hide()
+driver:SetScript("OnUpdate", function(self, dt)
   for i = #tweens, 1, -1 do
     local tw = tweens[i]
     tw.t = tw.t + dt
@@ -36,9 +38,11 @@ driver:SetScript("OnUpdate", function(_, dt)
       end
     end
   end
+  if #tweens == 0 then self:Hide() end
 end)
 local function Tween(dur, fn, delay, done, ease)
   table.insert(tweens, { t = 0, dur = dur, fn = fn, delay = delay or 0, done = done, ease = ease })
+  driver:Show()
 end
 local function OutCubic(p) return 1 - (1 - p) ^ 3 end
 local function OutBack(p) local c = 1.7; return 1 + (c + 1) * (p - 1) ^ 3 + c * (p - 1) ^ 2 end
@@ -396,10 +400,10 @@ local function BuildPulse()
   pulse.r1 = Tex(pulse, GLOW, 60, 60, "OVERLAY", true, EL.water)
   pulse.r2 = Tex(pulse, GLOW, 60, 60, "OVERLAY", true, EL.water)
   for _, r in ipairs({ pulse.r1, pulse.r2 }) do r:SetPoint("CENTER", mb, "TOPLEFT", 17, -16) end
-  local clock = 0
+  local clock, rings = 0, { pulse.r1, pulse.r2 }
   pulse:SetScript("OnUpdate", function(_, dt)
     clock = clock + dt
-    for i, r in ipairs({ pulse.r1, pulse.r2 }) do
+    for i, r in ipairs(rings) do
       local ph = (clock / 1.6 + (i - 1) * 0.5) % 1
       r:SetSize(44 + 40 * ph, 44 + 40 * ph)
       r:SetAlpha((1 - ph) * 0.9)

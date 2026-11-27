@@ -2,7 +2,7 @@
 local ADDON, NS = ...
 local C = NS.colors
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local function Print(m) NS.Print(m) end
 local function Money(c) return NS.Money(math.floor(c + 0.5)) end
 local function IdFromLink(link) return link and tonumber(link:match("item:(%d+)")) end
@@ -113,7 +113,7 @@ local function CanUse(link)
 end
 
 local function Compare(tt)
-  if not PiolinCodexDB or DB().noGear then return end
+  if not NS.db or DB().noGear then return end
   local link = NS.TipLink(tt)
   if not link then return end
   local equipLoc = select(9, GetItemInfo(link))
@@ -121,8 +121,8 @@ local function Compare(tt)
   if not slots then return end
   local ok, why = CanUse(link)
   if not ok then
-    tt:AddLine("|cffd9a93fCódice|r · |cffff6060No te sirve:|r " .. why)
-    tt:Show()
+    NS.TipHeader(tt)
+    tt:AddLine("|cffe5534bNo te sirve:|r " .. why, 0.9, 0.91, 0.93)
     return
   end
   local new, newStats = Score(link)
@@ -131,8 +131,8 @@ local function Compare(tt)
   for _, slot in ipairs(slots) do
     local l = GetInventoryItemLink("player", slot)
     if l == link then
-      tt:AddLine("|cffd9a93fCódice|r · Lo tenés equipado", 0.7, 0.7, 0.7)
-      tt:Show()
+      NS.TipHeader(tt)
+      tt:AddLine("Lo tenés equipado", 0.6, 0.63, 0.68)
       return
     end
     local s, st = Score(l)
@@ -154,31 +154,32 @@ local function Compare(tt)
   local diff = new - (old or 0)
   local line
   if not oldLink and (old or 0) == 0 then
-    line = "|cff7fd16aMejora: ranura vacía, equipalo|r"
+    line = "|cff5bbe6aMejora: ranura vacía, equipalo|r"
   elseif math.abs(diff) < 0.5 then
-    line = "|cffffd96aMás o menos igual a lo que tenés|r"
+    line = "|cfff2c94cMás o menos igual a lo que tenés|r"
   elseif diff > 0 then
     local pct = old > 0 and (" (+" .. math.floor(diff / old * 100 + 0.5) .. "%)") or ""
-    line = "|cff7fd16aMejora para Mejora: +" .. string.format("%.1f", diff) .. pct .. "|r"
+    line = "|cff5bbe6aMejora para Mejora: +" .. string.format("%.1f", diff) .. pct .. "|r"
   else
-    line = "|cffff6060Peor que lo tuyo: " .. string.format("%.1f", diff) .. "|r"
+    line = "|cffe5534bPeor que lo tuyo: " .. string.format("%.1f", diff) .. "|r"
   end
-  tt:AddLine(" ")
-  tt:AddLine("|cffd9a93fCódice|r · " .. line)
+  NS.TipHeader(tt)
+  tt:AddLine(line)
   local parts = {}
   for _, k in ipairs(ORDER) do
     local d = (newStats[k] or 0) - (oldStats[k] or 0)
     if math.abs(d) >= 0.1 then
       local txt = (k == "ITEM_MOD_DAMAGE_PER_SECOND_SHORT") and string.format("%+.1f", d) or string.format("%+d", d)
-      local col = d > 0 and "|cff7fd16a" or "|cffff6060"
+      local col = d > 0 and "|cff5bbe6a" or "|cffe5534b"
       table.insert(parts, SHORT[k] .. " " .. col .. txt .. "|r")
     end
   end
-  if #parts > 0 then tt:AddLine(table.concat(parts, "  "), 1, 1, 1) end
-  if equipLoc == "INVTYPE_2HWEAPON" and GetInventoryItemLink("player", 17) then
-    tt:AddLine("(comparado contra tu arma + escudo)", 0.55, 0.5, 0.42)
+  if #parts > 0 and NS.TipMore(tt) then
+    tt:AddLine("  " .. table.concat(parts, "  "), 1, 1, 1)
+    if equipLoc == "INVTYPE_2HWEAPON" and GetInventoryItemLink("player", 17) then
+      tt:AddLine("  (comparado contra tu arma + escudo)", 0.6, 0.63, 0.68)
+    end
   end
-  tt:Show()
 end
 
 NS.HookItemTooltip(Compare)
@@ -266,7 +267,7 @@ end
 function NS.CharExtra()
   local lines = {}
   local pct = Durability()
-  local col = pct <= 25 and "|cffff6060" or (pct <= 50 and "|cffff9a40" or "|cff7fd16a")
+  local col = pct <= 25 and "|cffe5534b" or (pct <= 50 and "|cffff9a40" or "|cff5bbe6a")
   table.insert(lines, "Durabilidad: " .. col .. pct .. "%|r" .. (DB().noRepair and "" or "  |cff8c806b(se repara sola en el vendedor)|r"))
   local owned, ids = OwnedNames()
   local level = UnitLevel("player") or 0
@@ -281,7 +282,7 @@ function NS.CharExtra()
     if #shown >= 4 then break end
     if g.lvl == 0 or g.lvl >= level - 4 then
       local have = HasGoal(g, owned, ids)
-      local mark = have and "|cff7fd16a✔|r " or "|cffd9a93f·|r "
+      local mark = have and "|cff5bbe6a✔|r " or "|cffd9a93f·|r "
       local lv = g.lvl > 0 and ("|cff69ccf0" .. g.lvl .. "|r ") or ""
       table.insert(shown, "  " .. mark .. lv .. (have and ("|cff8c806b" .. g.t .. "|r") or g.t))
     end
@@ -336,7 +337,7 @@ local function ApplySellPrice()
   local txt = "|cffd9a93fCódice:|r " .. Money(buy) .. " c/u, un poco menos que el más barato (" .. Money(unit) .. ", " .. src .. ")"
   local vendor = select(11, GetItemInfo(id)) or 0
   if vendor > 0 and buy * 0.95 < vendor * 1.25 then
-    txt = txt .. "\n|cffffd96aOjo: al vendedor te pagan " .. Money(vendor) .. " c/u sin riesgo.|r"
+    txt = txt .. "\n|cfff2c94cOjo: al vendedor te pagan " .. Money(vendor) .. " c/u sin riesgo.|r"
   end
   sellLabel:SetText(txt)
 end
@@ -406,7 +407,7 @@ end)
 local prevSlash = NS.TradeSlash
 NS.TradeSlash = function(msg)
   if msg == "ayuda" then
-    Print("comandos: /piolin (abrir), opciones, instructor [oficio], rastreo, misiones, ir X Y, macros, tienda, probar, nivel [N], totems, avisos, equipo, reparar, ayudante, vender, compras, precios, minimapa, reset, basura [objeto], objetivo [objeto].")
+    Print("comandos: /piolin (abrir), config, hud, instructor [oficio], rastreo, misiones, ir X Y, macros, tienda, probar, nivel [N], avisos, equipo, reparar, ayudante, vender, compras, precios, minimapa, reset, basura [objeto], objetivo [objeto].")
     return true
   elseif msg == "equipo" then
     DB().noGear = not DB().noGear

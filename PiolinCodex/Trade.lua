@@ -2,7 +2,7 @@
 local ADDON, NS = ...
 local C = NS.colors
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local function Print(m) NS.Print(m) end
 local function Money(c) return NS.Money(math.floor(c + 0.5)) end
 
@@ -99,23 +99,29 @@ end
 NS.Verdict = Verdict
 
 local function AddTooltip(tt)
-  if not PiolinCodexDB or DB().noPrices then return end
+  if not NS.db or DB().noPrices then return end
   local link = NS.TipLink(tt)
   local id = IdFromLink(link)
   if not id then return end
   local vendor = select(11, GetItemInfo(link))
   local ah, rec = Price(id)
   if not ah and not (vendor and vendor > 0) then return end
-  tt:AddLine(" ")
-  if ah then
-    tt:AddDoubleLine("|cffd9a93fCódice|r · Subasta (c/u)", Money(ah) .. "  |cff8c806b" .. (rec.seed and ("wowauctions " .. NS.SEED_DATE) or Ago(rec.t)) .. "|r", 1, 1, 1, 1, 1, 1)
-  else
-    tt:AddLine("|cffd9a93fCódice|r · Subasta: sin datos (escaneá en la casa de subastas)", 0.7, 0.7, 0.7)
-  end
-  if vendor and vendor > 0 then tt:AddDoubleLine("Vendedor (c/u)", Money(vendor), 1, 1, 1, 1, 1, 1) end
+  local L = NS.L
+  NS.TipHeader(tt)
+  local left
+  if ah and vendor and vendor > 0 then left = L["Subasta %s · vendedor %s"]:format(Money(ah), Money(vendor))
+  elseif ah then left = L["Subasta %s"]:format(Money(ah))
+  else left = L["Vendedor %s"]:format(Money(vendor)) end
   local v = Verdict(id, vendor)
-  if v then tt:AddLine(v) end
-  tt:Show()
+  local right = v and (v:find("subasta") and "|cff5bbe6a" .. L["→ subasta"] .. "|r" or "|cfff2c94c" .. L["→ vendedor"] .. "|r") or ("|cff6b7280" .. L["sin precio de subasta"] .. "|r")
+  tt:AddDoubleLine(left, right, 0.9, 0.91, 0.93, 1, 1, 1)
+  if NS.TipMore(tt) then
+    if ah then
+      tt:AddLine("  " .. (rec.seed and ("precio de wowauctions del " .. NS.SEED_DATE) or ("tu escaneo: " .. Ago(rec.t))), 0.6, 0.63, 0.68)
+    else
+      tt:AddLine("  escaneá los materiales en la casa de subastas para ver su precio", 0.6, 0.63, 0.68)
+    end
+  end
 end
 
 NS.HookItemTooltip(AddTooltip)
@@ -141,33 +147,39 @@ end
 NS.MatUses = UsesOf
 
 local function AddMatUse(tt)
-  if not PiolinCodexDB or DB().noMatUse then return end
+  if not NS.db or DB().noMatUse then return end
   local id = IdFromLink(NS.TipLink(tt))
   if not id then return end
   local uses, via = UsesOf(id), nil
   if #uses == 0 and DERIVED[id] then via = DERIVED[id]; uses = UsesOf(via[1]) end
   if #uses == 0 then return end
+  local L = NS.L
   local rank = NS.Skill("Peletería")
-  tt:AddLine(" ")
-  tt:AddLine("|cffd9a93fCódice|r · Para Peletería" .. (rank and ("  |cff8c806b(vas por " .. rank .. ")|r") or ""), 1, 1, 1)
-  if via then tt:AddLine(via[2], 0.6, 0.75, 0.9) end
-  local shown = 0
-  for _, u in ipairs(uses) do
-    local t = u.t
-    if not (rank and rank >= t.max) and shown < 3 then
-      shown = shown + 1
-      local now = rank and rank >= t.min
-      local amount = via and (u.n .. " " .. u.name) or tostring(u.n)
-      local line = (now and "|cff7fd16aAhora|r · " or "") .. t.min .. "-" .. t.max .. "  " .. t.recipe .. ": " .. amount
-      if now and not via then
-        local have = GetItemCount(id, true) or 0
-        line = line .. (have >= u.n and "  |cff7fd16a(tenés " .. have .. ")|r" or "  |cffffd96a(tenés " .. have .. ")|r")
-      end
-      tt:AddLine(line, 0.86, 0.89, 0.93)
+  local pending = {}
+  for _, u in ipairs(uses) do if not (rank and rank >= u.t.max) then table.insert(pending, u) end end
+  NS.TipHeader(tt)
+  if #pending == 0 then
+    tt:AddLine(L["Ya pasaste los tramos que lo usan"], 0.6, 0.63, 0.68)
+    return
+  end
+  local u = pending[1]
+  local now = rank and rank >= u.t.min
+  local amount = via and (u.n .. " " .. u.name) or u.n
+  local left = L["Peletería %s: %d"]:format(u.t.min .. "-" .. u.t.max, u.n)
+  if via then left = left:gsub(u.n .. "$", amount) end
+  local right = ""
+  if not via then
+    local have = GetItemCount(id, true) or 0
+    right = (have >= u.n and "|cff5bbe6a" or "|cfff2c94c") .. L["tenés %d"]:format(have) .. "|r"
+  end
+  tt:AddDoubleLine((now and "|cfff2c94c" or "") .. left .. (now and "|r" or ""), right, 0.9, 0.91, 0.93, 1, 1, 1)
+  if (via or #pending > 1) and NS.TipMore(tt) then
+    if via then tt:AddLine("  " .. via[2], 0.6, 0.63, 0.68) end
+    for i = 2, math.min(3, #pending) do
+      local p = pending[i]
+      tt:AddLine("  " .. p.t.min .. "-" .. p.t.max .. "  " .. p.t.recipe .. ": " .. (via and (p.n .. " " .. p.name) or p.n), 0.6, 0.63, 0.68)
     end
   end
-  if shown == 0 then tt:AddLine("Ya pasaste los tramos que lo usan: lo podés vender.", 0.55, 0.5, 0.42) end
-  tt:Show()
 end
 
 NS.HookItemTooltip(AddMatUse)

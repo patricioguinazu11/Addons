@@ -30,7 +30,7 @@ fire('PLAYER_LEVEL_UP',25); fire('MERCHANT_SHOW'); fire('AUCTION_HOUSE_SHOW'); f
 run(); run()
 print('chat:'); [print('  ',m) for m in list(L.globals().__chat.values())[-8:]]
 fold=L.eval('''function(NS)
-  local p = NS.pages.misiones
+  local p = NS.pages.guia
   return p and "ok" or "sin pagina"
 end''')
 print('pagina misiones', fold(NS))
@@ -62,10 +62,10 @@ ex=L.eval('''function(NS)
   return r1, GetBindingKey("PIOLINCODEX_TOGGLE"), tostring(rawget(NS.cbById.dm7,"questState")), tostring(rawget(NS.cbById.dm1,"questState"))
 end''')
 print('extras:', ex(NS))
-chk=L.eval('''function(NS) return tostring(PiolinCodexDB.checks.dm7), NS.QuestStatus(166), tostring(PiolinCodexDB.checks.dm4), NS.cbById.dm4 and tostring(rawget(NS.cbById.dm4,"questState")) end''')
+chk=L.eval('''function(NS) return tostring(PiolinCodexCharDB.checks.dm7), NS.QuestStatus(166), tostring(PiolinCodexCharDB.checks.dm4), NS.cbById.dm4 and tostring(rawget(NS.cbById.dm4,"questState")) end''')
 print('dm7 tildada:', chk(NS))
 dbg=L.eval('''function(NS)
-  local p = NS.pages.misiones
+  local p = NS.pages.guia
   local r = rawget(p, "refreshers")
   local out = {"refreshers=" .. tostring(r and #r)}
   if r then r[1]() end
@@ -86,7 +86,7 @@ snd=L.eval('''function(NS)
   for _, t in ipairs(__timers) do t() end; __timers = {}
   local sl = _G.PiolinCodexVolume
   sl.__scripts.OnValueChanged(sl, 0.3)
-  table.insert(out, "vol=" .. tostring(PiolinCodexDB.soundVolume))
+  table.insert(out, "vol=" .. tostring(PiolinCodexCharDB.soundVolume))
   NS.Alert("tent", "x"); NS.Alert("q123", "y")
   table.insert(out, "sonidos=" .. #__played .. " ultimo=" .. __played[#__played])
   __fire("PLAYER_LOGOUT")

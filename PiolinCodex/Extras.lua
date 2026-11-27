@@ -2,7 +2,7 @@
 local ADDON, NS = ...
 local C = NS.colors
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local function Print(m) NS.Print(m) end
 
 ----------------------------------------------------------------------
@@ -33,7 +33,7 @@ local function BuildArrow()
   arrow:EnableMouse(true)
   arrow:RegisterForDrag("LeftButton")
   arrow:RegisterForClicks("RightButtonUp")
-  arrow:SetScript("OnDragStart", arrow.StartMoving)
+  arrow:SetScript("OnDragStart", NS.DragStart)
   arrow:SetScript("OnDragStop", arrow.StopMovingOrSizing)
   arrow:SetClampedToScreen(true)
   arrow.tex = arrow:CreateTexture(nil, "ARTWORK")
@@ -52,7 +52,7 @@ local function BuildArrow()
   arrow:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:AddLine("Códice de Piolin", 0.85, 0.66, 0.25)
-    GameTooltip:AddLine("Arrastrar: mover la flecha", 1, 1, 1)
+    GameTooltip:AddLine(NS.db.locked and "Para moverla, destrabá los marcos en la configuración" or "Arrastrar: mover la flecha", 1, 1, 1)
     GameTooltip:AddLine("Clic derecho: quitarla", 1, 1, 1)
     GameTooltip:Show()
   end)
@@ -274,142 +274,350 @@ NS.PageExtras.misiones = function(P, H)
 end
 
 ----------------------------------------------------------------------
--- 4. Panel de opciones nativo
+-- 4. Configuración (Opciones › AddOns, el engranaje de la ventana y /piolin config)
+-- Secciones a la izquierda; cada opción con una descripción corta; "Restablecer" por sección y general.
+-- Las opciones "no..." son interruptores invertidos: nil = prendido (ver DB.lua).
 ----------------------------------------------------------------------
-local OPTIONS = {
-  { key = "noAnim", inv = true, t = "Animaciones del Códice", d = "Elementos al abrir, tildes, logros, nivel y viento." },
-  { key = "noLevelCard", inv = true, t = "Cartel al subir de nivel", d = "Qué subió, punto de talento y qué entrenar en el instructor." },
-  { key = "noTotems", inv = true, t = "Temporizadores de tótems", d = "Tiempo que le queda a cada tótem. /piolin totems para moverla." },
-  { key = "noFishClick", inv = true, t = "Pescar con doble clic derecho", d = "Con la caña equipada y fuera de combate. Recogés con clic derecho en el corcho." },
-  { key = "noReminders", inv = true, t = "Avisos de combate y de cebo", d = "Escudo de relámpagos, imbuición y cebo de la caña." },
-  { key = "noQuestLog", inv = true, t = "Avisar misiones listas para entregar", d = "Cartel cuando completás los objetivos de una misión." },
-  { key = "noSkinTips", inv = true, t = "Pistas de desuello en las bestias", d = "Qué nivel de Desuello pide y si te da puntos." },
-  { key = "noAutoTrack", inv = true, t = "Rastrear instructores al entrar a una ciudad", d = "Forjaz, Ventormenta y Darnassus: aparecen en el minimapa." },
-  { key = "noGear", inv = true, t = "Comparador de equipo en los tooltips", d = "Mejora o peor para un chamán Mejora." },
-  { key = "noPrices", inv = true, t = "Precios en los tooltips", d = "Subasta, vendedor y qué conviene." },
-  { key = "noMatUse", inv = true, t = "Para qué sirve cada material", d = "En qué tramo de Peletería lo usás y cuánto tenés." },
-  { key = "noAutoSell", inv = true, t = "Vender la basura sola en el vendedor", d = "Todo lo gris y lo marcado con /piolin basura." },
-  { key = "noRepair", inv = true, t = "Reparar solo en el vendedor", d = "Si te alcanza el oro." },
-  { key = "noShop", inv = true, t = "Lista de compras en vendedor y subasta", d = "Lo que falta para tu tramo de Peletería." },
-  { key = "noSellHelper", inv = true, t = "Ayudante para vender en la subasta", d = "Completa la puja y la compra ya." },
-  { key = "noArrow", inv = true, t = "Mostrar la flecha del botón “Ir”", d = "Si la apagás, queda solo el pin en el mapa." },
-  { key = "ownArrow", t = "Usar la flecha del Códice aunque tenga TomTom", d = "Por defecto usa TomTom si está instalado." },
-  { key = "hideMinimap", inv = true, t = "Botón del rayo en el minimapa", d = "Abre y cierra el Códice." },
-  { key = "noMiniStatus", inv = true, t = "Mini estado junto al minimapa", d = "Bolsas libres, durabilidad, piedra de hogar y tienda." },
+local L = NS.L
+local SECTIONS = {
+  { key = "general", t = L["General"], items = {
+    { kind = "check", key = "locked", t = L["Bloquear marcos"], d = L["Destrabalos para moverlos; vale para todos los del Códice."] },
+    { kind = "slider", key = "winScale", t = L["Escala de la ventana"], min = 0.7, max = 1.3 },
+    { kind = "select", key = "font", t = L["Letra"], d = L["Se aplica al recargar la interfaz (/reload)."], choices = { { "inter", "Inter" }, { "game", L["La del juego"] } } },
+    { kind = "check", key = "hideMinimap", inv = true, t = "Botón del rayo en el minimapa", d = "Abre y cierra el Códice." },
+    { kind = "check", key = "noMiniStatus", inv = true, t = "Mini estado junto al minimapa", d = "Bolsas libres, durabilidad, piedra de hogar y tienda." },
+    { kind = "check", key = "noLevelCard", inv = true, t = "Cartel al subir de nivel", d = "Qué subió, punto de talento y qué entrenar." },
+    { kind = "check", key = "noAnim", inv = true, t = "Animaciones del Códice", d = "Al abrir, al tildar, al subir de nivel y al cambiar de pestaña." },
+    { kind = "key" },
+  }},
+  { key = "combate", t = L["Combate"], items = {
+    { kind = "check", key = "noTotems", inv = true, t = L["HUD de combate"], d = L["Escudo, imbuición y tótems con su tiempo."] },
+    { kind = "select", key = "hudMode", t = L["Mostrar el HUD"], choices = { { "always", L["Siempre"] }, { "combat", L["En combate"] }, { "hidden", L["Oculto"] } } },
+    { kind = "slider", key = "hudScale", t = L["Escala del HUD"], min = 0.6, max = 1.6 },
+    { kind = "check", key = "noReminders", inv = true, t = "Marcar lo que falta antes de pelear", d = "Escudo e imbuición al seleccionar un enemigo, y el cebo de la caña." },
+  }},
+  { key = "mapa", t = L["Misiones y mapa"], items = {
+    { kind = "check", key = "noQuestLog", inv = true, t = "Avisar misiones listas para entregar", d = "Cartel cuando completás los objetivos de una misión." },
+    { kind = "check", key = "noArrow", inv = true, t = "Flecha del botón “Ir”", d = "Si la apagás, queda solo el pin en el mapa." },
+    { kind = "check", key = "ownArrow", t = "Usar la flecha del Códice aunque tenga TomTom", d = "Por defecto usa TomTom si está instalado." },
+    { kind = "check", key = "noAutoTrack", inv = true, t = "Rastrear instructores al entrar a una ciudad", d = "Aparecen en el minimapa en Forjaz, Ventormenta y Darnassus." },
+  }},
+  { key = "comercio", t = L["Comercio"], items = {
+    { kind = "check", key = "noPrices", inv = true, t = "Precios en los tooltips", d = "Subasta, vendedor y qué conviene." },
+    { kind = "check", key = "noGear", inv = true, t = "Comparar equipo en los tooltips", d = "Mejora o peor para un chamán Mejora." },
+    { kind = "check", key = "noAutoSell", inv = true, t = "Vender la basura sola en el vendedor", d = "Todo lo gris y lo marcado con /piolin basura." },
+    { kind = "check", key = "noRepair", inv = true, t = "Reparar solo en el vendedor", d = "Si te alcanza el oro." },
+    { kind = "check", key = "noShop", inv = true, t = "Lista de compras en vendedor y subasta", d = "Lo que falta para tu tramo de Peletería." },
+    { kind = "check", key = "noSellHelper", inv = true, t = "Ayudante para vender en la subasta", d = "Completa la puja y la compra ya." },
+  }},
+  { key = "oficios", t = L["Oficios y pesca"], items = {
+    { kind = "check", key = "noMatUse", inv = true, t = "Para qué sirve cada material", d = "En qué tramo de Peletería lo usás y cuánto tenés." },
+    { kind = "check", key = "noSkinTips", inv = true, t = "Pistas de desuello en las bestias", d = "Qué nivel de Desuello pide y si te da puntos." },
+    { kind = "check", key = "noFishClick", inv = true, t = "Pescar con doble clic derecho", d = "Con la caña equipada y fuera de combate." },
+  }},
+  { key = "sonido", t = L["Sonido"], items = {
+    { kind = "check", key = "noSound", inv = true, t = "Sonidos del Códice", d = "Avisos, tildes y pestañas, con el canal y el volumen que elijas." },
+    { kind = "button", t = L["Opciones de sonido"], fn = function() if NS.OpenSoundOptions then NS.OpenSoundOptions() end end },
+  }},
+  { key = "perfil", t = L["Perfil"], items = { { kind = "profile" } } },
 }
+NS.OPTION_SECTIONS = SECTIONS
+
+-- Lo que hay que mover en pantalla después de cambiar una opción
+function NS.ApplySettings()
+  if NS.minimapButton then NS.minimapButton:SetShown(not DB().hideMinimap) end
+  if NS.ShowMiniStatus then NS.ShowMiniStatus(not DB().noMiniStatus) end
+  if arrow and way then arrow:SetShown(not DB().noArrow) end
+  if NS.UpdateHUD then NS.UpdateHUD() end
+  if NS.ApplyWindowScale then NS.ApplyWindowScale() end
+end
+
+local function ResetSection(sec)
+  local keys = {}
+  for _, it in ipairs(sec.items) do if it.key then keys[#keys + 1] = it.key end end
+  NS.ResetKeys(keys)
+end
 
 local panel, category
 local function BuildPanel()
   panel = CreateFrame("Frame", "PiolinCodexOptions")
   panel.name = "Códice de Piolin"
   local S = NS.Style
-  local title = S.Font(panel:CreateFontString(nil, "ARTWORK"), 18, S.K.title, true)
+  local K = S.K
+  local title = S.Font(panel:CreateFontString(nil, "ARTWORK"), 18, K.title, true)
   title:SetPoint("TOPLEFT", 16, -16)
   title:SetText("Códice de Piolin")
-  local sub = S.Font(panel:CreateFontString(nil, "ARTWORK"), 11.5, S.K.mute)
+  local sub = S.Font(panel:CreateFontString(nil, "ARTWORK"), 10.5, K.mute)
   sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-  sub:SetText("Tu guía de Enano Chamán Mejora. Prendé o apagá cada función.")
-  local y = -64
+  sub:SetText("/piolin config  ·  " .. NS.CharKey())
   panel.checks = {}
-  for _, o in ipairs(OPTIONS) do
-    local cb = S.SkinCheck(CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate"))
-    cb:SetSize(24, 24)
-    cb:SetPoint("TOPLEFT", 14, y)
-    local lab = S.Font(panel:CreateFontString(nil, "ARTWORK"), 12.5, S.K.parch)
-    lab:SetPoint("LEFT", cb, "RIGHT", 6, 6)
-    lab:SetText(o.t)
-    local d = S.Font(panel:CreateFontString(nil, "ARTWORK"), 10.5, S.K.dim)
-    d:SetPoint("TOPLEFT", lab, "BOTTOMLEFT", 0, -3)
-    d:SetText(o.d)
-    cb.opt = o
-    cb:SetScript("OnClick", function(self)
-      local v = self:GetChecked() and true or false
-      if o.inv then v = not v end
-      DB()[o.key] = v or nil
-      if o.key == "hideMinimap" and NS.minimapButton then NS.minimapButton:SetShown(not DB().hideMinimap) end
-      if o.key == "noMiniStatus" and NS.ShowMiniStatus then NS.ShowMiniStatus(not DB().noMiniStatus) end
-      if o.key == "noArrow" and arrow and way then arrow:SetShown(not DB().noArrow) end
-    end)
-    table.insert(panel.checks, cb)
-    y = y - 31
-  end
 
-  -- tecla
-  local kt = S.Font(panel:CreateFontString(nil, "ARTWORK"), 13, S.K.title, true)
-  kt:SetPoint("TOPLEFT", 380, -64)
-  kt:SetText("Tecla para abrir el Códice")
-  local kb = S.SkinButton(CreateFrame("Button", nil, panel, "UIPanelButtonTemplate"))
-  kb:SetSize(180, 26)
-  kb:SetPoint("TOPLEFT", kt, "BOTTOMLEFT", 0, -8)
-  local khint = S.Font(panel:CreateFontString(nil, "ARTWORK"), 10.5, S.K.dim)
-  khint:SetPoint("TOPLEFT", kb, "BOTTOMLEFT", 0, -6)
-  khint:SetWidth(220)
-  khint:SetJustifyH("LEFT")
-  khint:SetText("Tocá el botón y apretá la tecla o combinación (por ejemplo Shift+C). Esc cancela. También está en Atajos de teclado → AddOns.")
-  local function paintKey() kb:SetText(CurrentKey() and ("Tecla: " .. CurrentKey()) or "Elegir tecla") end
-  local capture = CreateFrame("Frame", nil, kb)
-  capture:SetAllPoints()
-  capture:Hide()
-  capture:EnableKeyboard(true)
-  capture:SetScript("OnKeyDown", function(self, key)
-    if key == "LSHIFT" or key == "RSHIFT" or key == "LCTRL" or key == "RCTRL" or key == "LALT" or key == "RALT" then return end
-    self:Hide()
-    if key == "ESCAPE" then paintKey(); return end
-    if InCombatLockdown and InCombatLockdown() then Print("no se pueden cambiar teclas en combate."); paintKey(); return end
-    local combo = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
-    local old = CurrentKey()
-    if old then SetBinding(old) end
-    if SetBinding(combo, "PIOLINCODEX_TOGGLE") then
-      SaveBindings(GetCurrentBindingSet())
-      Print("tecla " .. C.H .. combo .. C.E .. " asignada al Códice.")
-    else
-      Print("no se pudo usar esa tecla.")
+  -- columna de secciones
+  local nav, pages, current = {}, {}, 1
+  local function show(i)
+    current = i
+    for j, b in ipairs(nav) do
+      local on = j == i
+      b.sel:SetShown(on); b.bar:SetShown(on)
+      b.label:SetTextColor(S.C3(on and K.title or K.mute))
+      pages[j]:SetShown(on)
     end
-    paintKey()
-  end)
-  kb:SetScript("OnClick", function() kb:SetText("Apretá una tecla…"); capture:Show() end)
-  local kclear = S.SkinButton(CreateFrame("Button", nil, panel, "UIPanelButtonTemplate"))
-  kclear:SetSize(90, 26)
-  kclear:SetPoint("LEFT", kb, "RIGHT", 6, 0)
-  kclear:SetText("Quitar")
-  kclear:SetScript("OnClick", function()
-    local old = CurrentKey()
-    if old and not (InCombatLockdown and InCombatLockdown()) then SetBinding(old); SaveBindings(GetCurrentBindingSet()); Print("tecla quitada.") end
-    paintKey()
-  end)
-
-  -- acciones
-  local at = S.Font(panel:CreateFontString(nil, "ARTWORK"), 13, S.K.title, true)
-  at:SetPoint("TOPLEFT", 380, -190)
-  at:SetText("Acciones")
-  local function action(text, y2, fn, kind)
-    local b = S.SkinButton(CreateFrame("Button", nil, panel, "UIPanelButtonTemplate"), kind)
-    b:SetSize(180, 26)
-    b:SetPoint("TOPLEFT", 380, y2)
-    b:SetText(text)
-    b:SetScript("OnClick", fn)
-    return b
+    if pages[i].refresh then pages[i].refresh() end
   end
-  action("Abrir el Códice", -214, function() NS.Toggle() end, "primary")
-  action("Crear macros", -244, function() NS.CreateMacros() end)
-  action("Quitar la flecha", -274, function() NS.ClearWaypoint(true) end)
-  action("Probar un aviso", -304, function() NS.Alert(nil, "Así se ven los avisos del Códice", "Interface\\Icons\\Spell_Nature_LightningShield", 1, 0.82, 0.25) end)
-  StaticPopupDialogs["PIOLINCODEX_RESET"] = {
-    text = "¿Borrar todas las tildes del Códice? No se puede deshacer.",
-    button1 = "Borrar", button2 = "Cancelar",
-    OnAccept = function() PiolinCodexDB.checks = {}; Print("tildes borradas. Escribí /reload para ver el cambio.") end,
+  for i, sec in ipairs(SECTIONS) do
+    local b = CreateFrame("Button", nil, panel)
+    b:SetSize(150, 26)
+    b:SetPoint("TOPLEFT", 12, -64 - (i - 1) * 26)
+    b.sel = b:CreateTexture(nil, "BACKGROUND"); b.sel:SetAllPoints(); b.sel:SetColorTexture(S.C3(K.card))
+    b.bar = b:CreateTexture(nil, "ARTWORK"); b.bar:SetPoint("TOPLEFT"); b.bar:SetPoint("BOTTOMLEFT"); b.bar:SetWidth(2); b.bar:SetColorTexture(S.C3(K.accent))
+    local hl = b:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.05)
+    b.label = S.Font(b:CreateFontString(nil, "ARTWORK"), 12, K.mute)
+    b.label:SetPoint("LEFT", 12, 0)
+    b.label:SetText(sec.t)
+    b:SetScript("OnClick", function() show(i) end)
+    nav[i] = b
+  end
+  local vline = panel:CreateTexture(nil, "ARTWORK")
+  vline:SetPoint("TOPLEFT", 172, -60); vline:SetPoint("BOTTOMLEFT", 172, 52); vline:SetWidth(1)
+  vline:SetColorTexture(S.C3(K.line))
+
+  -- páginas
+  local X = 192
+  for i, sec in ipairs(SECTIONS) do
+    local pg = CreateFrame("Frame", nil, panel)
+    pg:SetPoint("TOPLEFT", X, -60); pg:SetPoint("BOTTOMRIGHT", -16, 52)
+    pg:Hide()
+    local h = S.Font(pg:CreateFontString(nil, "ARTWORK"), 13, K.title, true)
+    h:SetPoint("TOPLEFT", 0, -4)
+    h:SetText(sec.t)
+    local y = -32
+    local painters = {}
+    for _, it in ipairs(sec.items) do
+      if it.kind == "check" then
+        local cb = S.SkinCheck(CreateFrame("CheckButton", nil, pg, "UICheckButtonTemplate"))
+        cb:SetSize(22, 22)
+        cb:SetPoint("TOPLEFT", -4, y)
+        table.insert(panel.checks, cb)
+        local lab = S.Font(pg:CreateFontString(nil, "ARTWORK"), 12, K.parch)
+        lab:SetPoint("LEFT", cb, "RIGHT", 6, 6)
+        lab:SetText(it.t)
+        local d = S.Font(pg:CreateFontString(nil, "ARTWORK"), 10.5, K.dim)
+        d:SetPoint("TOPLEFT", lab, "BOTTOMLEFT", 0, -2)
+        d:SetText(it.d or "")
+        cb:SetScript("OnClick", function(self)
+          local v = self:GetChecked() and true or false
+          if it.inv then v = not v end
+          if it.key == "locked" then DB().locked = v else DB()[it.key] = v or nil end
+          NS.ApplySettings()
+        end)
+        painters[#painters + 1] = function()
+          local v = DB()[it.key] and true or false
+          if it.inv then v = not v end
+          cb:SetChecked(v)
+        end
+        y = y - 32
+      elseif it.kind == "slider" then
+        local lab = S.Font(pg:CreateFontString(nil, "ARTWORK"), 12, K.parch)
+        lab:SetPoint("TOPLEFT", 0, y - 4)
+        lab:SetText(it.t)
+        local sl = CreateFrame("Slider", nil, pg, BackdropTemplateMixin and "BackdropTemplate" or nil)
+        sl:SetOrientation("HORIZONTAL")
+        sl:SetSize(160, 12)
+        sl:SetPoint("TOPLEFT", 170, y - 4)
+        sl:SetMinMaxValues(it.min, it.max)
+        sl:SetValueStep(0.05)
+        if sl.SetObeyStepOnDrag then sl:SetObeyStepOnDrag(true) end
+        local track = sl:CreateTexture(nil, "BACKGROUND"); track:SetPoint("LEFT"); track:SetPoint("RIGHT"); track:SetHeight(3); track:SetColorTexture(S.C3(K.line))
+        local thumb = sl:CreateTexture(nil, "ARTWORK"); thumb:SetSize(8, 14); thumb:SetColorTexture(S.C3(K.title))
+        sl:SetThumbTexture(thumb)
+        local val = S.Font(pg:CreateFontString(nil, "ARTWORK"), 10.5, K.mute)
+        val:SetPoint("LEFT", sl, "RIGHT", 10, 0)
+        local painting
+        sl:SetScript("OnValueChanged", function(_, v)
+          v = math.floor(v * 20 + 0.5) / 20
+          val:SetText(math.floor(v * 100 + 0.5) .. "%")
+          if painting then return end
+          DB()[it.key] = v
+          NS.ApplySettings()
+        end)
+        painters[#painters + 1] = function() painting = true; sl:SetValue(DB()[it.key] or 1); val:SetText(math.floor((DB()[it.key] or 1) * 100 + 0.5) .. "%"); painting = false end
+        y = y - 30
+      elseif it.kind == "select" then
+        local lab = S.Font(pg:CreateFontString(nil, "ARTWORK"), 12, K.parch)
+        lab:SetPoint("TOPLEFT", 0, y - 4)
+        lab:SetText(it.t)
+        local btns = {}
+        local x = 170
+        for _, ch in ipairs(it.choices) do
+          local b = S.SkinButton(CreateFrame("Button", nil, pg, "UIPanelButtonTemplate"))
+          b:SetText(ch[2])
+          local w = math.max(80, (b:GetFontString() and b:GetFontString():GetStringWidth() or 60) + 24)
+          b:SetSize(w, 22)
+          b:SetPoint("TOPLEFT", x, y)
+          x = x + w + 4
+          b.mark = b:CreateTexture(nil, "OVERLAY"); b.mark:SetPoint("BOTTOMLEFT", 1, 1); b.mark:SetPoint("BOTTOMRIGHT", -1, 1); b.mark:SetHeight(2); b.mark:SetColorTexture(S.C3(K.accent))
+          b:SetScript("OnClick", function()
+            DB()[it.key] = ch[1]
+            for _, o in ipairs(btns) do o.mark:SetShown(o.v == ch[1]) end
+            NS.ApplySettings()
+          end)
+          b.v = ch[1]
+          btns[#btns + 1] = b
+        end
+        painters[#painters + 1] = function() for _, o in ipairs(btns) do o.mark:SetShown(o.v == (DB()[it.key] or NS.DEFAULTS[it.key])) end end
+        y = y - 30
+        if it.d then
+          local d = S.Font(pg:CreateFontString(nil, "ARTWORK"), 10.5, K.dim)
+          d:SetPoint("TOPLEFT", 170, y + 4)
+          d:SetText(it.d)
+          y = y - 14
+        end
+      elseif it.kind == "button" then
+        local b = S.SkinButton(CreateFrame("Button", nil, pg, "UIPanelButtonTemplate"))
+        b:SetSize(180, 24)
+        b:SetPoint("TOPLEFT", 0, y)
+        b:SetText(it.t)
+        b:SetScript("OnClick", it.fn)
+        y = y - 34
+      elseif it.kind == "key" then
+        y = y - 6
+        local kt = S.Font(pg:CreateFontString(nil, "ARTWORK"), 12, K.parch)
+        kt:SetPoint("TOPLEFT", 0, y - 4)
+        kt:SetText(L["Tecla para abrir el Códice"])
+        local kb = S.SkinButton(CreateFrame("Button", nil, pg, "UIPanelButtonTemplate"))
+        kb:SetSize(140, 22)
+        kb:SetPoint("TOPLEFT", 170, y)
+        local function paintKey() kb:SetText(CurrentKey() and ("Tecla: " .. CurrentKey()) or L["Elegir tecla"]) end
+        local capture = CreateFrame("Frame", nil, kb)
+        capture:SetAllPoints()
+        capture:Hide()
+        capture:EnableKeyboard(true)
+        capture:SetScript("OnKeyDown", function(self, key)
+          if key == "LSHIFT" or key == "RSHIFT" or key == "LCTRL" or key == "RCTRL" or key == "LALT" or key == "RALT" then return end
+          self:Hide()
+          if key == "ESCAPE" then paintKey(); return end
+          if InCombatLockdown and InCombatLockdown() then Print("no se pueden cambiar teclas en combate."); paintKey(); return end
+          local combo = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
+          local old = CurrentKey()
+          if old then SetBinding(old) end
+          if SetBinding(combo, "PIOLINCODEX_TOGGLE") then
+            SaveBindings(GetCurrentBindingSet())
+            Print("tecla " .. C.H .. combo .. C.E .. " asignada al Códice.")
+          else
+            Print("no se pudo usar esa tecla.")
+          end
+          paintKey()
+        end)
+        kb:SetScript("OnClick", function() kb:SetText("Apretá una tecla…"); capture:Show() end)
+        local kclear = S.SkinButton(CreateFrame("Button", nil, pg, "UIPanelButtonTemplate"))
+        kclear:SetSize(70, 22)
+        kclear:SetPoint("LEFT", kb, "RIGHT", 4, 0)
+        kclear:SetText(L["Quitar"])
+        kclear:SetScript("OnClick", function()
+          local old = CurrentKey()
+          if old and not (InCombatLockdown and InCombatLockdown()) then SetBinding(old); SaveBindings(GetCurrentBindingSet()); Print("tecla quitada.") end
+          paintKey()
+        end)
+        painters[#painters + 1] = paintKey
+        y = y - 34
+        -- acciones
+        local function action(text, x, fn, kind)
+          local b = S.SkinButton(CreateFrame("Button", nil, pg, "UIPanelButtonTemplate"), kind)
+          b:SetSize(140, 22)
+          b:SetPoint("TOPLEFT", x, y)
+          b:SetText(text)
+          b:SetScript("OnClick", fn)
+          return b
+        end
+        action(L["Abrir el Códice"], 0, function() NS.Toggle() end, "primary")
+        action(L["Crear macros"], 146, function() NS.CreateMacros() end)
+        action("Ver el HUD", 292, function() if NS.HudPreview then NS.HudPreview() end end)
+        y = y - 28
+      elseif it.kind == "profile" then
+        local note = S.Font(pg:CreateFontString(nil, "ARTWORK"), 12, K.parch)
+        note:SetPoint("TOPLEFT", 0, y)
+        note:SetWidth(380)
+        note:SetJustifyH("LEFT")
+        note:SetText(L["Las preferencias son de este personaje. Copiá las de otro:"])
+        y = y - 26
+        local rows = {}
+        for r = 1, 6 do
+          local name = S.Font(pg:CreateFontString(nil, "ARTWORK"), 12, K.parch)
+          name:SetPoint("TOPLEFT", 0, y - 4)
+          local b = S.SkinButton(CreateFrame("Button", nil, pg, "UIPanelButtonTemplate"))
+          b:SetSize(80, 22)
+          b:SetPoint("TOPLEFT", 260, y)
+          b:SetText(L["Copiar"])
+          rows[r] = { name = name, b = b }
+          y = y - 28
+        end
+        StaticPopupDialogs["PIOLINCODEX_RESET"] = {
+          text = "¿Borrar todas las tildes del Códice de este personaje? No se puede deshacer.",
+          button1 = "Borrar", button2 = "Cancelar",
+          OnAccept = function() NS.db.checks = {}; Print("tildes borradas. Escribí /reload para ver el cambio.") end,
+          timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+        }
+        local wipe = S.SkinButton(CreateFrame("Button", nil, pg, "UIPanelButtonTemplate"), "danger")
+        wipe:SetSize(180, 22)
+        wipe:SetPoint("TOPLEFT", 0, y - 8)
+        wipe:SetText(L["Borrar todas las tildes"])
+        wipe:SetScript("OnClick", function() StaticPopup_Show("PIOLINCODEX_RESET") end)
+        local empty = S.Font(pg:CreateFontString(nil, "ARTWORK"), 10.5, K.dim)
+        empty:SetPoint("TOPLEFT", 0, -58)
+        empty:SetText(L["Todavía no hay otros personajes con el Códice."])
+        painters[#painters + 1] = function()
+          local list = NS.OtherProfiles()
+          empty:SetShown(#list == 0)
+          for r, row in ipairs(rows) do
+            local k = list[r]
+            row.name:SetText(k or ""); row.b:SetShown(k ~= nil)
+            row.b:SetScript("OnClick", function()
+              if k and NS.CopyProfile(k) then Print("preferencias copiadas de " .. k .. ". Escribí /reload para ver todo."); NS.ApplySettings(); show(current) end
+            end)
+          end
+        end
+      end
+    end
+    pg.refresh = function() for _, f in ipairs(painters) do f() end end
+    pages[i] = pg
+  end
+
+  -- restablecer
+  local hline = panel:CreateTexture(nil, "ARTWORK")
+  hline:SetPoint("BOTTOMLEFT", 12, 44); hline:SetPoint("BOTTOMRIGHT", -16, 44); hline:SetHeight(1)
+  hline:SetColorTexture(S.C3(K.line))
+  local rAll = S.SkinButton(CreateFrame("Button", nil, panel, "UIPanelButtonTemplate"))
+  rAll:SetSize(140, 24)
+  rAll:SetPoint("BOTTOMRIGHT", -16, 12)
+  rAll:SetText(L["Restablecer todo"])
+  local rSec = S.SkinButton(CreateFrame("Button", nil, panel, "UIPanelButtonTemplate"))
+  rSec:SetSize(140, 24)
+  rSec:SetPoint("RIGHT", rAll, "LEFT", -6, 0)
+  rSec:SetText(L["Restablecer sección"])
+  StaticPopupDialogs["PIOLINCODEX_RESET_ALL"] = {
+    text = "¿Volver todas las opciones y posiciones del Códice a como venían? Las tildes y las notas no se tocan.",
+    button1 = "Restablecer", button2 = "Cancelar",
+    OnAccept = function()
+      for _, sec in ipairs(SECTIONS) do ResetSection(sec) end
+      NS.ResetPositions()
+      NS.ApplySettings()
+      show(current)
+      Print("opciones restablecidas.")
+    end,
     timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
   }
-  action("Borrar todas las tildes", -344, function() StaticPopup_Show("PIOLINCODEX_RESET") end, "danger")
-
-  panel:SetScript("OnShow", function()
-    for _, cb in ipairs(panel.checks) do
-      local v = DB()[cb.opt.key] and true or false
-      if cb.opt.inv then v = not v end
-      cb:SetChecked(v)
-    end
-    paintKey()
+  rAll:SetScript("OnClick", function() StaticPopup_Show("PIOLINCODEX_RESET_ALL") end)
+  rSec:SetScript("OnClick", function()
+    ResetSection(SECTIONS[current])
+    if SECTIONS[current].key == "general" then NS.ResetPositions() end
+    NS.ApplySettings()
+    show(current)
+    Print(SECTIONS[current].t .. ": opciones restablecidas.")
   end)
+
+  panel:SetScript("OnShow", function() show(current) end)
+  show(1)
+  panel.Show_ = show
 
   if Settings and Settings.RegisterCanvasLayoutCategory then
     category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
@@ -480,7 +688,7 @@ local function BuildMiniStatus()
   -- se mueve arrastrando y recuerda dónde quedó
   mini:SetMovable(true); mini:EnableMouse(true); mini:SetClampedToScreen(true)
   mini:RegisterForDrag("LeftButton")
-  mini:SetScript("OnDragStart", mini.StartMoving)
+  mini:SetScript("OnDragStart", NS.DragStart)
   mini:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
     local p, _, rp, x, y = self:GetPoint(1)
@@ -507,13 +715,13 @@ local function BuildMiniStatus()
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
       GameTooltip:AddLine(d.title, S.C3(S.K.title))
       if self.tip then GameTooltip:AddLine(self.tip, 1, 1, 1, true) end
-      GameTooltip:AddLine("Arrastrá el recuadro para moverlo.", 0.55, 0.6, 0.68)
+      GameTooltip:AddLine(NS.db.locked and "Para moverlo, destrabá los marcos en la configuración." or "Arrastrá el recuadro para moverlo.", 0.55, 0.6, 0.68)
       GameTooltip:Show()
     end)
     b:SetScript("OnLeave", GameTooltip_Hide)
     -- arrastrar desde un ícono también mueve el recuadro
     b:RegisterForDrag("LeftButton")
-    b:SetScript("OnDragStart", function() mini:StartMoving() end)
+    b:SetScript("OnDragStart", function() NS.DragStart(mini) end)
     b:SetScript("OnDragStop", function() mini:GetScript("OnDragStop")(mini) end)
     mini.items[d.key] = b
   end

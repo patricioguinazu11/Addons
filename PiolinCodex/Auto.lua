@@ -1,7 +1,7 @@
 -- Códice de Piolin: más tildes automáticas (talentos, hechizos, objetos, ranuras y cosas que hiciste)
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 
 ----------------------------------------------------------------------
 -- Reglas: cada tarea se tilda si se cumple CUALQUIERA de sus condiciones
@@ -198,7 +198,8 @@ end
 
 local ev = CreateFrame("Frame")
 NS.SafeEvents(ev, { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB",
-  "CHARACTER_POINTS_CHANGED", "PLAYER_TALENT_UPDATE", "TRAIT_CONFIG_UPDATED", "UNIT_INVENTORY_CHANGED", "UNIT_SPELLCAST_SUCCEEDED" })
+  "CHARACTER_POINTS_CHANGED", "PLAYER_TALENT_UPDATE", "TRAIT_CONFIG_UPDATED" })
+NS.UnitEvents(ev, { "UNIT_INVENTORY_CHANGED", "UNIT_SPELLCAST_SUCCEEDED" }, "player")
 ev:SetScript("OnEvent", function(self, event, unit, _, spellID)
   if event == "UNIT_INVENTORY_CHANGED" then
     if unit == "player" and PoleEquipped() and GetWeaponEnchantInfo() then NS.SetFlag("lure") end

@@ -4,7 +4,7 @@
 -- en el segundo clic se presta el botón derecho a un botón seguro con Pesca, y se devuelve enseguida.
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 
 local DOUBLE = 0.4      -- segundos entre los dos clics
 local FISHING_ID = 7620 -- Pesca (rango 1); el juego lanza el mejor rango que tengas
@@ -39,7 +39,7 @@ end
 NS.FishDisarm = Disarm
 
 local function CanCast()
-  if not PiolinCodexDB or DB().noFishClick then return false end
+  if not NS.db or DB().noFishClick then return false end
   if InCombatLockdown() then return false end
   if not PoleEquipped() then return false end
   if Channeling() then return false end

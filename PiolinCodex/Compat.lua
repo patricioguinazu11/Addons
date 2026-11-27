@@ -208,26 +208,60 @@ end
 -- Bolsas
 if missing("UseContainerItem") and C_Container and C_Container.UseContainerItem then UseContainerItem = C_Container.UseContainerItem end
 
--- Tooltips de objetos: el motor moderno usa TooltipDataProcessor
+-- Tooltips de objetos: el motor moderno usa TooltipDataProcessor.
+-- Todos los agregados del Códice pasan por un solo gancho: así comparten un único encabezado
+-- ("CÓDICE"), van juntos y la pista "Shift: más detalle" queda una sola vez al final.
+local tipFns, tipHooked = {}, false
+local function RunTip(tt)
+  if not (tt == GameTooltip or tt == ItemRefTooltip) then return end
+  rawset(tt, "__codexHead", nil); rawset(tt, "__codexMore", nil)
+  for _, fn in ipairs(tipFns) do pcall(fn, tt) end
+  if rawget(tt, "__codexMore") and not IsShiftKeyDown() then
+    tt:AddLine(NS.L["Shift: más detalle"], 0.42, 0.45, 0.5)
+  end
+  if rawget(tt, "__codexHead") then tt:Show() end
+end
 function NS.HookItemTooltip(fn)
+  table.insert(tipFns, fn)
+  if tipHooked then return end
+  tipHooked = true
   if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tt, data)
-      if tt == GameTooltip or tt == ItemRefTooltip then
-        NS.__tipData = data
-        pcall(fn, tt)
-        NS.__tipData = nil
-      end
+      NS.__tipData = data
+      RunTip(tt)
+      NS.__tipData = nil
     end)
   else
     for _, tt in ipairs({ GameTooltip, ItemRefTooltip }) do
-      if tt and tt.HasScript and tt:HasScript("OnTooltipSetItem") then tt:HookScript("OnTooltipSetItem", fn) end
+      if tt and tt.HasScript and tt:HasScript("OnTooltipSetItem") then tt:HookScript("OnTooltipSetItem", RunTip) end
     end
   end
+end
+
+-- Encabezado del bloque del Códice (una vez por tooltip)
+function NS.TipHeader(tt)
+  if rawget(tt, "__codexHead") then return end
+  rawset(tt, "__codexHead", true)
+  tt:AddLine(" ")
+  tt:AddLine("CÓDICE", 0.18, 0.56, 1)
+end
+-- Hay detalle que se ve con Shift; devuelve si Shift está apretado
+function NS.TipMore(tt)
+  rawset(tt, "__codexMore", true)
+  return IsShiftKeyDown()
 end
 
 -- Registrar eventos sin romper si alguno no existe en este cliente
 function NS.SafeEvents(frame, list)
   for _, e in ipairs(list) do pcall(frame.RegisterEvent, frame, e) end
+end
+
+-- Eventos de unidad solo para las unidades pedidas (si el cliente no tiene RegisterUnitEvent, todos)
+function NS.UnitEvents(frame, list, ...)
+  for _, e in ipairs(list) do
+    if frame.RegisterUnitEvent then pcall(frame.RegisterUnitEvent, frame, e, ...)
+    else pcall(frame.RegisterEvent, frame, e) end
+  end
 end
 
 -- Mapas: los números de zona cambian entre versiones; se buscan por nombre

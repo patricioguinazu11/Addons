@@ -6,7 +6,7 @@
 -- si una versión nueva de Questie los cambia, el Códice no se rompe, solo deja de usarlos.
 local ADDON, NS = ...
 
-local function DB() return PiolinCodexDB end
+local function DB() return NS.db end
 local function Print(msg) print("|cffd9a93fCódice:|r " .. msg) end
 
 -- ¿Está Questie instalado? (aunque todavía no haya terminado de cargar)
