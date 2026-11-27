@@ -11,7 +11,9 @@ Si tenés [Questie](https://github.com/Questie/Questie) instalado, el Códice us
 
 Para Mejora hay temporizadores de tótems: cuatro casillas (tierra, fuego, agua y aire) con el tiempo que le queda a cada uno. Aparecen solas al poner un tótem y se mueven arrastrándolas; `/piolin totems` muestra una de ejemplo. Y en el tooltip de los materiales de Peletería dice en qué tramo los usás y cuántos tenés.
 
-Versión actual: **4.4.0**.
+Para pescar: con la caña equipada y fuera de combate, doble clic derecho en el mundo lanza Pesca (se apaga en Opciones).
+
+Versión actual: **4.5.0**.
 
 ## Contenido
 

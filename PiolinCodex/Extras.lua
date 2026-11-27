@@ -280,6 +280,7 @@ local OPTIONS = {
   { key = "noAnim", inv = true, t = "Animaciones del Códice", d = "Elementos al abrir, tildes, logros, nivel y viento." },
   { key = "noLevelCard", inv = true, t = "Cartel al subir de nivel", d = "Qué subió, punto de talento y qué entrenar en el instructor." },
   { key = "noTotems", inv = true, t = "Temporizadores de tótems", d = "Tiempo que le queda a cada tótem. /piolin totems para moverla." },
+  { key = "noFishClick", inv = true, t = "Pescar con doble clic derecho", d = "Con la caña equipada y fuera de combate. Recogés con clic derecho en el corcho." },
   { key = "noReminders", inv = true, t = "Avisos de combate y de cebo", d = "Escudo de relámpagos, imbuición y cebo de la caña." },
   { key = "noQuestLog", inv = true, t = "Avisar misiones listas para entregar", d = "Cartel cuando completás los objetivos de una misión." },
   { key = "noSkinTips", inv = true, t = "Pistas de desuello en las bestias", d = "Qué nivel de Desuello pide y si te da puntos." },
